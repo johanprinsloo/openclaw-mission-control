@@ -1,0 +1,34 @@
+{
+  "projects": [
+    {
+      "id": "openclaw-mission-control",
+      "name": "OpenClaw Mission Control",
+      "stage": "Development",
+      "owner": "Kleo",
+      "path": "~/Documents/code/openclaw-mission-control",
+      "description": "Central hub for project and work management."
+    },
+    {
+      "id": "openclaw-signal-voice",
+      "name": "OpenClaw Signal Voice",
+      "stage": "Definition",
+      "owner": "Kleo",
+      "path": "~/Documents/code/openclaw-signal-voice",
+      "description": "Real-time voice interface for Signal calls."
+    },
+    {
+      "id": "openclaw-mumble-bridge",
+      "name": "OpenClaw Mumble Bridge",
+      "stage": "Maintenance",
+      "owner": "Kleo",
+      "description": "Mumble-to-Signal/AI audio bridge."
+    },
+    {
+      "id": "daily-briefings",
+      "name": "Automated Daily Briefings",
+      "stage": "Adoption",
+      "owner": "Kleo",
+      "description": "NYT and Weather reports with robust redundancy."
+    }
+  ]
+}
