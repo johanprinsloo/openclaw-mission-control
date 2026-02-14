@@ -51,50 +51,7 @@ Selections prioritize, in order:
 
 ### Project Structure
 
-```
-mission-control/
-├── alembic/                    # Database migrations
-│   └── versions/
-├── app/
-│   ├── api/
-│   │   └── v1/
-│   │       ├── orgs.py         # Organization endpoints
-│   │       ├── users.py        # User endpoints
-│   │       ├── projects.py     # Project endpoints
-│   │       ├── tasks.py        # Task endpoints
-│   │       ├── channels.py     # Channel + message endpoints
-│   │       ├── sub_agents.py   # Sub-agent endpoints
-│   │       ├── events.py       # Event log + SSE stream
-│   │       ├── search.py       # Unified search endpoint
-│   │       ├── exports.py      # Data export endpoints
-│   │       └── subscriptions.py
-│   ├── auth/
-│   │   ├── oidc.py             # OIDC login/callback flows
-│   │   ├── api_key.py          # API key validation
-│   │   └── dependencies.py     # FastAPI dependency injection for auth
-│   ├── models/                 # SQLAlchemy ORM models
-│   ├── schemas/                # Pydantic request/response schemas
-│   ├── services/               # Business logic (transitions, dependency checks, etc.)
-│   ├── realtime/
-│   │   ├── sse.py              # SSE connection manager and event dispatch
-│   │   └── ws.py               # WebSocket connection manager and channel broadcast
-│   ├── core/
-│   │   ├── config.py           # Settings (Pydantic BaseSettings, env-driven)
-│   │   ├── database.py         # Async engine, session factory, RLS setup
-│   │   ├── security.py         # Hashing, token generation
-│   │   └── middleware.py       # Org resolution, request logging
-│   └── main.py                 # App factory, router mounting, lifespan events
-├── tests/
-│   ├── api/                    # Route-level integration tests
-│   ├── services/               # Business logic unit tests
-│   └── conftest.py             # Fixtures: test DB, test client, factory functions
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml      # Local dev: app + postgres + redis
-├── .env.example
-├── pyproject.toml
-└── README.md
-```
+See the separate mission_control_project_structure.md doc.
 
 ### RLS Integration Pattern
 
