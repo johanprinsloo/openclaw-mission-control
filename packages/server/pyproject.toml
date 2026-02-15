@@ -1,0 +1,36 @@
+[project]
+name = "mc-server"
+version = "0.1.0"
+description = "Mission Control API Server"
+dependencies = [
+    "fastapi[all]",
+    "sqlmodel",
+    "alembic",
+    "asyncpg",
+    "redis",
+    "arq",
+    "sse-starlette",
+    "bcrypt",
+    "pyjwt",
+    "python-multipart",
+    "pydantic-settings",
+    "structlog",
+]
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

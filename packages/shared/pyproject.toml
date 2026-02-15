@@ -1,0 +1,12 @@
+[project]
+name = "mc-shared"
+version = "0.1.0"
+description = "Shared Pydantic schemas and types for Mission Control"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+requires-python = ">=3.12"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
