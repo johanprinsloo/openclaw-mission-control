@@ -1,17 +1,23 @@
-from typing import Optional, List
-from datetime import datetime
-from sqlmodel import Field, Relationship, SQLModel
-from .base import TimestampMixin, UUIDMixin
+"""User model."""
 
-class User(UUIDMixin, TimestampMixin, table=True):
+from datetime import datetime
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
+from .base import UUIDMixin
+
+
+class User(UUIDMixin, SQLModel, table=True):
     __tablename__ = "users"
-    
-    email: Optional[str] = Field(unique=True, index=True)
-    type: str  # human | agent
+
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    type: str = Field(nullable=False)  # human | agent
     identifier: Optional[str] = None
     oidc_provider: Optional[str] = None
     oidc_subject: Optional[str] = None
-    
-    # Relationships
-    # orgs: List["UserOrg"] = Relationship(back_populates="user")
-    # projects: List["ProjectUserAssignment"] = Relationship(back_populates="user")
+    created_at: datetime = Field(
+        default_factory=lambda: __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+        nullable=False,
+        sa_column_kwargs={"server_default": "now()"},
+    )

@@ -1,19 +1,21 @@
-from typing import Optional, List
-from datetime import datetime
-from sqlmodel import Field, Relationship, SQLModel
-from sqlalchemy.dialects.postgresql import JSONB
+"""Project model."""
+
+from typing import Optional
 import uuid
+
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Field, SQLModel
+
 from .base import TimestampMixin, UUIDMixin
 
-class Project(UUIDMixin, TimestampMixin, table=True):
+
+class Project(UUIDMixin, TimestampMixin, SQLModel, table=True):
     __tablename__ = "projects"
 
-    name: str
+    org_id: uuid.UUID = Field(foreign_key="organizations.id", nullable=False, index=True)
+    name: str = Field(nullable=False)
+    type: str = Field(nullable=False)  # software | docs | launch
     description: Optional[str] = None
-    stage: str = Field(default="definition")
-    owner_id: Optional[uuid.UUID] = Field(foreign_key="users.id")
-    links: dict = Field(default_factory=dict, sa_type=JSONB)
-    org_id: uuid.UUID = Field(foreign_key="organizations.id", index=True)
-
-    # tasks: List["TaskProjectAssignment"] = Relationship(back_populates="project")
-    # members: List["ProjectUserAssignment"] = Relationship(back_populates="project")
+    stage: str = Field(default="definition", nullable=False)
+    owner_id: Optional[uuid.UUID] = Field(default=None, foreign_key="users.id")
+    links: dict = Field(default_factory=dict, sa_type=JSONB, nullable=False)
