@@ -96,6 +96,7 @@ tasks
   id              UUID PRIMARY KEY
   org_id          UUID NOT NULL REFERENCES organizations(id)
   title           TEXT NOT NULL
+  description     TEXT                              -- markdown
   type            TEXT NOT NULL                     -- bug | feature | chore
   priority        TEXT NOT NULL                     -- low | medium | high | critical
   status          TEXT NOT NULL DEFAULT 'backlog'   -- backlog | in-progress | in-review | complete
@@ -510,10 +511,16 @@ CREATE INDEX idx_messages_channel ON messages (channel_id, created_at DESC);
 
 ### Full-Text Search Indexes
 
-GIN indexes on tsvector columns power the unified search endpoint.
+GIN indexes on tsvector columns power the unified search endpoint. We use weighted ranking to ensure Names and Titles appear above descriptions and message content.
+
+#### Weighting Strategy
+
+We use PostgreSQL's `setweight` with the following coefficients for `ts_rank`:
+- **A (1.0):** Names and Titles (Primary identifiers)
+- **B (0.4):** Descriptions and Content (Contextual matches)
 
 ```sql
--- Projects: search name + description
+-- Projects: search name (A) + description (B)
 ALTER TABLE projects ADD COLUMN search_vector tsvector
   GENERATED ALWAYS AS (
     setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
@@ -521,22 +528,30 @@ ALTER TABLE projects ADD COLUMN search_vector tsvector
   ) STORED;
 CREATE INDEX idx_projects_fts ON projects USING GIN (search_vector);
 
--- Tasks: search title
+-- Tasks: search title (A) + description (B)
 ALTER TABLE tasks ADD COLUMN search_vector tsvector
   GENERATED ALWAYS AS (
-    to_tsvector('english', coalesce(title, ''))
+    setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(description, '')), 'B')
   ) STORED;
 CREATE INDEX idx_tasks_fts ON tasks USING GIN (search_vector);
 
--- Messages: search content
+-- Messages: search content (B)
 ALTER TABLE messages ADD COLUMN search_vector tsvector
   GENERATED ALWAYS AS (
-    to_tsvector('english', coalesce(content, ''))
+    setweight(to_tsvector('english', coalesce(content, '')), 'B')
   ) STORED;
 CREATE INDEX idx_messages_fts ON messages USING GIN (search_vector);
 ```
 
-The search API queries these indexes with `ts_rank` for relevance scoring and `ts_headline` for snippet generation with `<mark>` highlighting.
+#### Relevance and Recency
+
+The search API combines `ts_rank` with a custom boost logic in the application layer:
+
+1.  **Global Priority:** In a unified search, results are prioritized by type: Projects > Tasks > Messages.
+2.  **Status Boost:** Active projects and tasks receive a 1.2x boost to their rank.
+3.  **Time Decay:** Messages are penalized by age using a linear decay function, ensuring that recent conversations appear first for general queries.
+4.  **Snippets:** The API uses `ts_headline` to generate search snippets with `<mark>` highlighting around match terms.
 
 #### Scaling Note
 
