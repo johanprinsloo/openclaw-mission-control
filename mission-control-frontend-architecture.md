@@ -553,36 +553,11 @@ Chat interface for a single channel (org-wide or project).
 
 ### Event Log (`EventLogView.vue`)
 
-Filterable timeline of all org events.
+Filterable log of all org events. Uses **AG Grid** for high-density data management.
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Event Log                                           │
-│  Filters: [Project ▾] [User ▾] [Type ▾] [Date ▾]   │
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│  10:18 AM  builder-agent-01 transitioned Task 5      │
-│            in-progress → in-review                   │
-│            Project: Mission Control API               │
-│                                                      │
-│  10:16 AM  builder-agent-01 posted in #project-b     │
-│            "PR reviewed. Found 2 issues..."          │
-│                                                      │
-│  10:15 AM  jane created Task 8                       │
-│            "Add rate limiting middleware"             │
-│            Project: Mission Control API               │
-│                                                      │
-│  10:02 AM  system spawned sub-agent sa_tmp_xyz       │
-│            Task: Review auth PR                      │
-│            Requested by: builder-agent-01             │
-│                                                      │
-│  [Load more]                                         │
-└──────────────────────────────────────────────────────┘
-```
+**Real-time updates:** SSE events append new entries at the top of the grid.
 
-**Real-time updates:** SSE events append new entries at the top of the timeline. Entries animate in with a subtle slide-down.
-
-**Filters:** Filters narrow the view by project, user, event type, and date range. Filters update the URL query string, making filtered views shareable via URL.
+**Filters:** Column-level filtering provided by AG Grid (type, actor, project, etc.) replaces manual filter controls.
 
 ### Search (`SearchView.vue`)
 
@@ -640,9 +615,13 @@ Admin-only view for org configuration.
 
 ### User Management (`UserManagementView.vue`)
 
-Admin-only view for managing org members.
+Admin-only view for managing org members. Uses **AG Grid** for high-density member administration.
 
-**Table layout:** Name, type (human/agent), role, last active, actions (edit role, rotate key, remove).
+**Table layout:** Columnar layout managed by AG Grid (Name, type, role, last active, actions).
+
+### Task Table View (Alternate View)
+
+In addition to the Kanban board, users can toggle to a **Task Table View** (powered by AG Grid) for bulk operations, advanced sorting, and multi-column filtering.
 
 **Interactions:**
 - "Invite User" button opens a form (email for humans, identifier for agents).
