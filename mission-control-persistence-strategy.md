@@ -614,6 +614,25 @@ When an org enters `pending_deletion` status:
    - Archived partitions in S3 for the org are deleted.
    - Users who belong only to this org are deactivated. Users in other orgs are unaffected.
 
+## Redis Key Schema
+
+Redis is used for volatile, high-frequency, or ephemeral data. It is **not** a primary data store. If Redis is flushed, the system remains functional, though background jobs may need to be restarted and active SSE clients may experience a momentary disconnection.
+
+### Key Patterns and Sizing
+
+| Key Pattern | Data Type | TTL | Description |
+| :--- | :--- | :--- | :--- |
+| `mc:arq:job:*` | Hash | 24h | **Background Tasks:** ARQ job metadata and results. |
+| `mc:jwt:revoked:<jti>` | String | 1h | **Security:** Short-lived JWT revocation list (jti = JWT ID). |
+| `mc:events:pubsub` | Pub/Sub | N/A | **SSE Broadcast:** Routes DB events to all server instances. |
+| `mc:sse:buffer:<org_id>` | List | 10m | **SSE Replay:** Optional in-memory "hot buffer" (last 100 events). |
+
+### Sizing and Memory Policy
+
+- **Eviction Policy:** `allkeys-lru` is recommended. Since all critical data is in PostgreSQL, Redis can safely evict old keys if memory pressure occurs.
+- **Memory Requirement:** 256MB–512MB is sufficient for v1.
+- **Persistence:** RDB snapshots (daily) are optional but recommended to preserve the background job queue across reboots. AOF is not required.
+
 ## Connection Pooling
 
 PostgreSQL connections are managed via an application-level connection pool (e.g., PgBouncer or the framework's built-in pooler). Each request acquires a connection, sets the `app.current_org_id` session variable for RLS, executes queries, and returns the connection to the pool. Connection pool size is configured based on deployment mode:
