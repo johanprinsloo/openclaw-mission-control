@@ -180,6 +180,7 @@ messages (PARTITIONED BY RANGE (created_at))
 
 events (PARTITIONED BY RANGE (timestamp))
   id              UUID NOT NULL
+  sequence_id     BIGSERIAL UNIQUE                  -- monotonic ID for SSE replay
   org_id          UUID NOT NULL REFERENCES organizations(id)
   type            TEXT NOT NULL                     -- e.g., task.transitioned, project.created
   actor_id        UUID REFERENCES users(id)
@@ -543,6 +544,25 @@ CREATE TRIGGER events_immutable
 ```
 
 This ensures the audit trail cannot be tampered with, even by application-level bugs.
+
+## SSE Replay Logic
+
+To ensure robust real-time updates across server restarts and network disconnections, the server uses a hybrid replay strategy:
+
+1.  **Monotonic sequence:** Every event is assigned a `sequence_id` (BIGSERIAL). This ID is sent as the `id` field in SSE frames.
+2.  **Last-Event-ID:** When a client reconnects, it sends the `Last-Event-ID` header containing the last `sequence_id` it processed.
+3.  **Hot Buffer:** The server maintains an in-memory circular buffer of the last 100 events. If the requested `Last-Event-ID` is in the buffer, it is replayed immediately.
+4.  **Database Fallback:** If the ID is not in the buffer (e.g., after a server restart or long disconnection), the server queries the `events` table:
+    ```sql
+    SELECT * FROM events 
+    WHERE sequence_id > :last_id 
+    AND org_id = :current_org 
+    ORDER BY sequence_id ASC 
+    LIMIT 1000;
+    ```
+5.  **Safety Fallback:** If the requested ID is older than the current retention policy (i.e., the partition has been detached), the server returns a custom `events.reset` signal, prompting the client to perform a full data refresh.
+
+This strategy ensures that agents and users never miss a state change, even if the Mission Control server is rebooted mid-session.
 
 ## Archival and Retention
 
