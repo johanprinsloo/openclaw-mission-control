@@ -99,8 +99,7 @@ tasks
   type            TEXT NOT NULL                     -- bug | feature | chore
   priority        TEXT NOT NULL                     -- low | medium | high | critical
   status          TEXT NOT NULL DEFAULT 'backlog'   -- backlog | in-progress | in-review | complete
-  evidence_required       BOOLEAN NOT NULL DEFAULT false
-  evidence_types          TEXT[]                    -- pr_link | test_results | doc_url
+  required_evidence_types TEXT[]                    -- pr_link | test_results | doc_url
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
   completed_at    TIMESTAMPTZ                       -- set on transition to complete

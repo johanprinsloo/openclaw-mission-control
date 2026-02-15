@@ -139,6 +139,25 @@ All errors follow a standard shape:
 | PATCH | `/api/v1/orgs/{orgSlug}/tasks/{taskId}` | Update task (title, priority, assignees, evidence) | Contributor |
 | POST | `/api/v1/orgs/{orgSlug}/tasks/{taskId}/transition` | Change task status | Contributor |
 
+**Task Evidence Requirements:**
+When creating or updating a task, the `required_evidence_types` field (array of strings) specifies what must be submitted before the task can be transitioned to `complete`.
+- Valid types: `pr_link`, `test_results`, `doc_url`.
+- If the array is empty, no evidence is required.
+
+**Transitioning to Complete:**
+When transitioning a task to `complete`, the request must include the required evidence if `required_evidence_types` is not empty.
+
+```json
+POST /api/v1/orgs/{orgSlug}/tasks/{taskId}/transition
+{
+  "to_status": "complete",
+  "evidence": [
+    { "type": "pr_link", "url": "https://github.com/..." },
+    { "type": "test_results", "url": "https://ci.example.com/..." }
+  ]
+}
+```
+
 #### Temporary Sub-Agents
 
 | Method | Path | Description | Auth |
