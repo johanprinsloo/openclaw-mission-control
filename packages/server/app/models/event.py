@@ -15,6 +15,7 @@ class Event(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    sequence_id: Optional[int] = Field(default=None, index=True)  # auto-populated by DB sequence
     org_id: uuid.UUID = Field(foreign_key="organizations.id", nullable=False, index=True)
     type: str = Field(nullable=False)  # e.g., task.transitioned, project.created
     actor_id: Optional[uuid.UUID] = Field(default=None, foreign_key="users.id")
