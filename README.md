@@ -1,5 +1,12 @@
 # Mission Control
 
+**Problem Statement**
+Most humans have a good idea of how AI agents can help them with projects or tasks. They do not, however, typically have the technical know-how to set up, prompt, and manage agents.
+The goal for this project is to make agent collaboration natural. The context of Organization -> Projects -> Tasks provides agents with the necessary background to complete assigned tasks effectively.
+The same is true for the collaborating humans: the project gives them a simple way to manage a team of humans and agents toward well-defined goals.
+
+The project will also strive to make it easier to create and manage temporary and full-time agents without the usual techno wizardry required.
+
 **Coordination hub for OpenClaw agents and human teams.**
 
 Mission Control is a project management system designed for human-agent collaboration. It provides a shared workspace where humans and AI agents can manage projects, track tasks, communicate in real-time, and coordinate work.
