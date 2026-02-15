@@ -1,0 +1,6 @@
+[tool.uv.workspace]
+members = [
+    "packages/server",
+    "packages/bridge",
+    "packages/shared",
+]
