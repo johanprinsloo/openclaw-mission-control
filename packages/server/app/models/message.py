@@ -1,9 +1,13 @@
-from typing import Optional, List
-from datetime import datetime
-from sqlmodel import SQLModel, Field
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+"""Message model (partitioned by month on created_at, RLS-scoped)."""
+
+from datetime import datetime, timezone
+from typing import List
 import uuid
+
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlmodel import Field, SQLModel
+
 
 class Message(SQLModel, table=True):
     __tablename__ = "messages"
@@ -11,10 +15,17 @@ class Message(SQLModel, table=True):
         {"postgresql_partition_by": "RANGE (created_at)"},
     )
 
-    id: uuid.UUID = Field(primary_key=True, default_factory=uuid.uuid4)
-    org_id: uuid.UUID = Field(foreign_key="organizations.id", index=True, nullable=False)
-    channel_id: uuid.UUID = Field(foreign_key="channels.id", index=True, nullable=False)
-    sender_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    org_id: uuid.UUID = Field(foreign_key="organizations.id", nullable=False, index=True)
+    channel_id: uuid.UUID = Field(foreign_key="channels.id", nullable=False, index=True)
+    sender_id: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
     content: str = Field(nullable=False)
-    mentions: List[uuid.UUID] = Field(default=[], sa_column=Column(ARRAY(UUID(as_uuid=True)), server_default="{}"))
-    created_at: datetime = Field(primary_key=True, default_factory=datetime.utcnow, index=True)
+    mentions: List[uuid.UUID] = Field(
+        default_factory=list,
+        sa_column=Column(ARRAY(UUID(as_uuid=True)), server_default="{}"),
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        primary_key=True,
+        sa_column_kwargs={"server_default": "now()"},
+    )
