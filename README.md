@@ -92,7 +92,7 @@ Atomic actions required to move a project forward.
 - **Attributes:** Title, Priority, Type (Bug, Feature, Chore).
 - **Links:** Associated Users (assigned users), Associated Project(s).
 - **Lifecycle:** Backlog → In-Progress → In-Review → Complete.
-- **Evidence:** Completion may require external artifacts (PR links, Test results, doc URLs). Evidence required is configured when the Task is created.
+- **Evidence:** Completion may require external artifacts (PR links, Test results, doc URLs). The specific types of evidence required are configured when the task is created. If no types are specified, the task can be completed without evidence.
 - **Dependencies:** Support for blocking/blocked-by relationships.
 - **Archive:** Complete tasks are archived as permanent parts of their associated projects.
 

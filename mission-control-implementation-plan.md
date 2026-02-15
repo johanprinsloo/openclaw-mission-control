@@ -595,8 +595,9 @@ Build the minimum feature set needed to manage work through Mission Control: Org
 ### Acceptance Criteria
 
 - [ ] Create task with project and assignee → appears in Backlog column.
-- [ ] Drag to Complete with evidence required → evidence modal opens → submit → card moves.
-- [ ] Drag to Complete without required evidence → transition rejected with error message.
+- [ ] Drag to Complete with required evidence types → evidence modal opens → submit all required types → card moves.
+- [ ] Drag to Complete without submitting all required evidence types → transition rejected with error message.
+- [ ] Drag to Complete when no evidence types are required → card moves immediately.
 - [ ] Add dependency → blocked task shows dependency icon → cannot transition to Complete until blocker is Complete.
 - [ ] Circular dependency → returns 409 Conflict.
 - [ ] Filters narrow visible tasks correctly.
