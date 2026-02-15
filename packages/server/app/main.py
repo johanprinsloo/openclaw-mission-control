@@ -9,7 +9,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.middleware import CSRFMiddleware, SecurityHeadersMiddleware
+from app.core.redis import close_redis
 from app.api.v1 import router as api_v1_router
+from app.api.v1.auth import router as auth_router
 
 settings = get_settings()
 log = structlog.get_logger()
@@ -26,14 +29,19 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # CORS
+    # Middleware (order matters — outermost first)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CSRFMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+        allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
     )
+
+    # Auth routes (not org-scoped)
+    app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 
     # API routes
     app.include_router(api_v1_router, prefix="/api/v1")
@@ -56,6 +64,7 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def on_shutdown():
         log.info("Mission Control shutting down")
+        await close_redis()
 
     return app
 

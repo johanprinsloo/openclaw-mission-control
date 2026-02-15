@@ -1,6 +1,6 @@
 """User model."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -16,8 +16,9 @@ class User(UUIDMixin, SQLModel, table=True):
     identifier: Optional[str] = None
     oidc_provider: Optional[str] = None
     oidc_subject: Optional[str] = None
+    password_hash: Optional[str] = Field(default=None)  # bcrypt hash for email/password login
     created_at: datetime = Field(
-        default_factory=lambda: __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
         sa_column_kwargs={"server_default": "now()"},
     )
