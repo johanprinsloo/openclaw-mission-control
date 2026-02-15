@@ -6,8 +6,16 @@ All org-scoped endpoints are prefixed with /orgs/{orgSlug}.
 
 from fastapi import APIRouter
 from . import projects, tasks, events, channels
+from .organizations import router_global as orgs_global_router
+from .organizations import router_scoped as orgs_scoped_router
 
 router = APIRouter()
+
+# Organization routes (non-org-scoped: list, create)
+router.include_router(orgs_global_router)
+
+# Organization routes (org-scoped: get, update, delete, reactivate)
+router.include_router(orgs_scoped_router, prefix="/orgs/{orgSlug}", tags=["Organizations"])
 
 # Include resource routers
 # Note: Sub-agent POCs used {org_slug}, updating to {orgSlug} to match spec.
