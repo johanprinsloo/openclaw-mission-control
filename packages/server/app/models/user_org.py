@@ -14,3 +14,5 @@ class UserOrg(SQLModel, table=True):
     role: str = Field(nullable=False, default="contributor")  # administrator | contributor
     display_name: str = Field(nullable=False)
     api_key_hash: Optional[str] = None
+    api_key_previous_hash: Optional[str] = None
+    api_key_previous_expires_at: Optional[str] = None
