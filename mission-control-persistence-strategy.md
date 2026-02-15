@@ -36,7 +36,7 @@ Every tenant-scoped table includes an `org_id` column. PostgreSQL RLS policies e
 
 #### Policy Scope
 
-RLS policies are applied to all tenant-scoped tables: `projects`, `tasks`, `task_project_assignments`, `task_dependencies`, `task_evidence`, `users_orgs`, `channels`, `messages`, `events`, `sub_agents`, and `subscriptions`.
+RLS policies are applied to all tenant-scoped tables: `projects`, `tasks`, `task_project_assignments`, `project_user_assignments`, `task_dependencies`, `task_evidence`, `users_orgs`, `channels`, `messages`, `events`, `sub_agents`, and `subscriptions`.
 
 The `users` table is **not** RLS-scoped — user identities span orgs. Org membership is controlled via the `users_orgs` join table, which is RLS-scoped.
 
@@ -111,6 +111,16 @@ task_project_assignments
   org_id          UUID NOT NULL REFERENCES organizations(id)
   PRIMARY KEY (task_id, project_id)
 
+project_user_assignments
+  project_id      UUID REFERENCES projects(id)
+  user_id         UUID REFERENCES users(id)
+  org_id          UUID NOT NULL REFERENCES organizations(id)
+  assigned_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  PRIMARY KEY (project_id, user_id)
+
+-- Note: This table controls project membership (and thus project channel access).
+-- Users assigned to a project can access its channel and all channel history.
+
 task_user_assignments
   task_id         UUID REFERENCES tasks(id)
   user_id         UUID REFERENCES users(id)
@@ -140,6 +150,11 @@ channels
   name            TEXT NOT NULL
   type            TEXT NOT NULL                     -- org_wide | project
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+
+-- Note: Channel membership is implicit (no channel_members table).
+-- Org-wide channels: all users in users_orgs for this org_id.
+-- Project channels: all users in project_user_assignments for the project_id.
+-- Membership grants access to all history — no time-based filtering.
 
 sub_agents
   id              UUID PRIMARY KEY
@@ -478,6 +493,7 @@ CREATE INDEX idx_sub_agents_status  ON sub_agents (org_id, status) WHERE status 
 -- Join table lookups
 CREATE INDEX idx_task_projects_project  ON task_project_assignments (project_id);
 CREATE INDEX idx_task_users_user        ON task_user_assignments (user_id);
+CREATE INDEX idx_project_users_user     ON project_user_assignments (user_id);
 ```
 
 ### BRIN Indexes (Append-Only Tables)

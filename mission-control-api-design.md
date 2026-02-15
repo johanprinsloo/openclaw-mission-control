@@ -158,6 +158,11 @@ Settings are deep-merged (JSON Merge Patch). Unspecified fields retain their cur
 | PATCH | `/api/v1/orgs/{orgSlug}/projects/{projectId}` | Update project metadata | Contributor |
 | POST | `/api/v1/orgs/{orgSlug}/projects/{projectId}/transition` | Change lifecycle stage | Contributor |
 | DELETE | `/api/v1/orgs/{orgSlug}/projects/{projectId}` | End-of-life a project | Admin |
+| POST | `/api/v1/orgs/{orgSlug}/projects/{projectId}/members` | Assign user(s) to project | Contributor |
+| DELETE | `/api/v1/orgs/{orgSlug}/projects/{projectId}/members/{userId}` | Remove user from project | Contributor |
+
+**Project Membership:**
+Assigning a user to a project grants them access to the project's channel (including full message history). Use `POST /projects/{projectId}/members` with body `{ "user_ids": ["usr_abc", "usr_def"] }`.
 
 #### Tasks
 
@@ -205,6 +210,11 @@ POST /api/v1/orgs/{orgSlug}/tasks/{taskId}/transition
 | GET | `/api/v1/orgs/{orgSlug}/channels/{channelId}` | Get channel details | Member (org) / Assigned (project) |
 | GET | `/api/v1/orgs/{orgSlug}/channels/{channelId}/messages` | List messages (paginated, newest first) | Same as above |
 | POST | `/api/v1/orgs/{orgSlug}/channels/{channelId}/messages` | Post a message | Same as above |
+
+**Channel Membership Rules:**
+- **Org-wide channels:** All members of the organization are automatically members and can read/post messages.
+- **Project channels:** Only users assigned to the linked project are members. Assigning a user to a project automatically grants them access to the project's channel.
+- **History Access:** Membership grants access to the entire message history of the channel. Newly assigned users can read all past messages.
 
 #### Event Log
 
