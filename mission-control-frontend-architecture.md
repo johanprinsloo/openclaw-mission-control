@@ -409,22 +409,22 @@ export const useRealtimeStore = defineStore("realtime", () => {
 
 When SSE reconnects, there may be events that were missed during the gap. Two strategies handle this:
 
-**EventSource `Last-Event-ID`:** The browser's native EventSource sends the last received event ID on reconnection. The server replays missed events from that point. This handles short disconnections (seconds to minutes) seamlessly.
+**EventSource `Last-Event-ID`:** The browser's native EventSource sends the last received event ID (`sequence_id` from the database) on reconnection. The server replays missed events from the database or its hot buffer. This handles disconnections and server restarts seamlessly.
 
-**Full refresh on long disconnection:** If the SSE connection was down for more than 5 minutes, or if the server responds with an error indicating the event ID is too old to replay (events have been purged), the stores perform a full data refresh:
+**Full refresh on `events.reset`:** If the server cannot replay the requested ID (e.g., the ID is too old and the partition has been archived), it sends an `events.reset` event. Upon receiving this, the stores perform a full data refresh:
 
 ```typescript
-// composables/useSSE.ts (inside connect, on reconnect)
+// composables/useSSE.ts (inside connect, handle reset event)
 
-eventSource.onopen = () => {
-  realtimeStore.setSseStatus("connected")
-  if (reconnectAttempts > 0 && reconnectDuration() > 5 * 60 * 1000) {
-    // Stale data — full refresh
+function dispatch(event: MCEvent) {
+  if (event.type === "events.reset") {
+    // Replay impossible — full refresh
     projectStore.fetchProjects()
     taskStore.fetchTasks()
     subAgentStore.fetchSubAgents()
+    return
   }
-  reconnectAttempts = 0
+  // ... existing dispatch logic ...
 }
 ```
 
