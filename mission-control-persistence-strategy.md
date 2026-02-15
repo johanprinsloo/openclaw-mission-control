@@ -58,7 +58,7 @@ organizations
   name            TEXT NOT NULL
   slug            TEXT UNIQUE NOT NULL
   status          TEXT NOT NULL DEFAULT 'active'    -- active | suspended | pending_deletion
-  settings        JSONB NOT NULL DEFAULT '{}'
+  settings        JSONB NOT NULL DEFAULT '{}'       -- see "Org Settings Schema" below
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
   deletion_scheduled_at  TIMESTAMPTZ              -- set when deletion begins
@@ -190,6 +190,271 @@ events (PARTITIONED BY RANGE (timestamp))
 ```
 
 New partitions are created automatically via a scheduled job (or pg_partman) ahead of the upcoming month. Old partitions are detached and archived according to the retention policy (see Archival below).
+
+## Org Settings Schema
+
+The `settings` JSONB column on `organizations` stores org-level configuration. This schema is validated by the application layer (Pydantic) on read and write. All fields are optional; missing fields use defaults.
+
+### Schema Definition (Pydantic)
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional
+from enum import Enum
+
+class OidcProvider(str, Enum):
+    GITHUB = "github"
+    GOOGLE = "google"
+
+class EvidenceType(str, Enum):
+    PR_LINK = "pr_link"
+    TEST_RESULTS = "test_results"
+    DOC_URL = "doc_url"
+
+class NotificationChannel(str, Enum):
+    EMAIL = "email"
+    SIGNAL = "signal"
+
+class AuthenticationSettings(BaseModel):
+    """Authentication provider configuration."""
+    allowed_oidc_providers: list[OidcProvider] = Field(
+        default=[OidcProvider.GITHUB, OidcProvider.GOOGLE],
+        description="OIDC providers enabled for human login"
+    )
+    api_key_rotation_reminder_days: int = Field(
+        default=90,
+        ge=0,
+        description="Days before API key expiry to remind admins (0 = disabled)"
+    )
+
+class TaskDefaultsSettings(BaseModel):
+    """Default settings applied to new tasks."""
+    default_required_evidence_types: list[EvidenceType] = Field(
+        default=[],
+        description="Evidence types required by default for new tasks"
+    )
+    default_priority: str = Field(
+        default="medium",
+        pattern="^(low|medium|high|critical)$",
+        description="Default priority for new tasks"
+    )
+
+class NotificationSettings(BaseModel):
+    """Notification routing configuration."""
+    enabled_channels: list[NotificationChannel] = Field(
+        default=[NotificationChannel.EMAIL],
+        description="External notification channels available to users"
+    )
+    default_channel: Optional[NotificationChannel] = Field(
+        default=NotificationChannel.EMAIL,
+        description="Default notification channel for new users"
+    )
+    email_from_address: Optional[str] = Field(
+        default=None,
+        description="From address for outbound emails (if email enabled)"
+    )
+
+class GitHubIntegration(BaseModel):
+    """GitHub organization integration."""
+    enabled: bool = False
+    org_name: Optional[str] = Field(default=None, description="GitHub organization name")
+
+class GoogleWorkspaceIntegration(BaseModel):
+    """Google Workspace integration."""
+    enabled: bool = False
+    domain: Optional[str] = Field(default=None, description="Google Workspace domain")
+
+class IntegrationsSettings(BaseModel):
+    """External system integrations."""
+    github: GitHubIntegration = Field(default_factory=GitHubIntegration)
+    google_workspace: GoogleWorkspaceIntegration = Field(default_factory=GoogleWorkspaceIntegration)
+
+class AgentLimitsSettings(BaseModel):
+    """Agent and sub-agent constraints."""
+    max_concurrent_sub_agents: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Maximum concurrent sub-agents (null = unlimited)"
+    )
+    allowed_models: list[str] = Field(
+        default=[],
+        description="Models allowed for sub-agents (empty = all models allowed)"
+    )
+    sub_agent_default_timeout_minutes: int = Field(
+        default=30,
+        ge=5,
+        le=1440,
+        description="Default timeout for sub-agents in minutes"
+    )
+
+class BackupSettings(BaseModel):
+    """Backup configuration (self-hosted deployments)."""
+    enabled: bool = Field(default=False, description="Enable scheduled backups")
+    schedule_cron: Optional[str] = Field(
+        default="0 2 * * *",
+        description="Cron expression for backup schedule (default: 2 AM daily)"
+    )
+    destination: Optional[str] = Field(
+        default=None,
+        description="Backup destination (S3 URI or local path)"
+    )
+    retention_days: int = Field(
+        default=30,
+        ge=1,
+        description="Days to retain backups"
+    )
+
+class OrgSettings(BaseModel):
+    """
+    Complete org-level settings schema.
+    All fields are optional with sensible defaults.
+    """
+    authentication: AuthenticationSettings = Field(default_factory=AuthenticationSettings)
+    task_defaults: TaskDefaultsSettings = Field(default_factory=TaskDefaultsSettings)
+    notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    integrations: IntegrationsSettings = Field(default_factory=IntegrationsSettings)
+    agent_limits: AgentLimitsSettings = Field(default_factory=AgentLimitsSettings)
+    backup: BackupSettings = Field(default_factory=BackupSettings)
+    
+    # Deletion grace period (configurable per org for hosted offering)
+    deletion_grace_period_days: int = Field(
+        default=30,
+        ge=7,
+        le=90,
+        description="Days before org deletion is finalized"
+    )
+```
+
+### JSON Schema Equivalent
+
+For reference, the equivalent JSON Schema (used for OpenAPI spec generation):
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "authentication": {
+      "type": "object",
+      "properties": {
+        "allowed_oidc_providers": {
+          "type": "array",
+          "items": { "enum": ["github", "google"] },
+          "default": ["github", "google"]
+        },
+        "api_key_rotation_reminder_days": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 90
+        }
+      }
+    },
+    "task_defaults": {
+      "type": "object",
+      "properties": {
+        "default_required_evidence_types": {
+          "type": "array",
+          "items": { "enum": ["pr_link", "test_results", "doc_url"] },
+          "default": []
+        },
+        "default_priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "medium"
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "properties": {
+        "enabled_channels": {
+          "type": "array",
+          "items": { "enum": ["email", "signal"] },
+          "default": ["email"]
+        },
+        "default_channel": {
+          "type": "string",
+          "enum": ["email", "signal"],
+          "default": "email"
+        },
+        "email_from_address": { "type": "string", "format": "email" }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "org_name": { "type": "string" }
+          }
+        },
+        "google_workspace": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "domain": { "type": "string" }
+          }
+        }
+      }
+    },
+    "agent_limits": {
+      "type": "object",
+      "properties": {
+        "max_concurrent_sub_agents": { "type": "integer", "minimum": 1 },
+        "allowed_models": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "sub_agent_default_timeout_minutes": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 1440,
+          "default": 30
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "schedule_cron": { "type": "string", "default": "0 2 * * *" },
+        "destination": { "type": "string" },
+        "retention_days": { "type": "integer", "minimum": 1, "default": 30 }
+      }
+    },
+    "deletion_grace_period_days": {
+      "type": "integer",
+      "minimum": 7,
+      "maximum": 90,
+      "default": 30
+    }
+  }
+}
+```
+
+### Default Settings
+
+A newly created org has empty settings `{}`. The application applies defaults from the Pydantic model, so all queries return fully populated settings objects. This keeps the database lean while providing predictable API responses.
+
+### Partial Updates
+
+The `PATCH /api/v1/orgs/{orgSlug}` endpoint accepts partial settings updates via JSON Merge Patch semantics:
+
+```json
+PATCH /api/v1/orgs/acme-robotics
+{
+  "settings": {
+    "agent_limits": {
+      "max_concurrent_sub_agents": 10
+    }
+  }
+}
+```
+
+The server deep-merges the patch into existing settings, validates the result against the schema, and persists. Invalid patches return `400 Bad Request` with validation errors.
 
 ## Indexing Strategy
 

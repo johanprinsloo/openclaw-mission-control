@@ -104,9 +104,39 @@ All errors follow a standard shape:
 |--------|------|-------------|------|
 | GET | `/api/v1/orgs` | List orgs the authenticated user belongs to | Any |
 | POST | `/api/v1/orgs` | Create a new org (multi-tenant mode only) | Any |
-| GET | `/api/v1/orgs/{orgSlug}` | Get org details | Member |
-| PATCH | `/api/v1/orgs/{orgSlug}` | Update org settings | Admin |
+| GET | `/api/v1/orgs/{orgSlug}` | Get org details (includes settings) | Member |
+| PATCH | `/api/v1/orgs/{orgSlug}` | Update org name or settings | Admin |
 | DELETE | `/api/v1/orgs/{orgSlug}` | Begin org deletion (starts grace period) | Admin |
+
+**Org Settings:**
+The `settings` object returned by `GET` and updated via `PATCH` contains org-level configuration. See [Org Settings Schema](mission-control-persistence-strategy.md#org-settings-schema) for the complete schema definition.
+
+Settings categories:
+- `authentication` — OIDC providers, API key policies
+- `task_defaults` — Default evidence requirements and priority for new tasks
+- `notifications` — External notification channels (email, Signal)
+- `integrations` — GitHub, Google Workspace connections
+- `agent_limits` — Max sub-agents, allowed models, default timeouts
+- `backup` — Backup schedule and destination (self-hosted)
+- `deletion_grace_period_days` — Days before deletion is finalized
+
+**Example: Update org settings**
+```json
+PATCH /api/v1/orgs/acme-robotics
+{
+  "settings": {
+    "agent_limits": {
+      "max_concurrent_sub_agents": 10,
+      "allowed_models": ["claude-sonnet-4-5-20250514", "gpt-4o"]
+    },
+    "task_defaults": {
+      "default_required_evidence_types": ["pr_link"]
+    }
+  }
+}
+```
+
+Settings are deep-merged (JSON Merge Patch). Unspecified fields retain their current values.
 
 #### Users
 
