@@ -1,18 +1,12 @@
 [project]
-name = "openclaw-mc-shared"
+name = "mc-shared"
 version = "0.1.0"
-description = "Shared types and schemas for OpenClaw Mission Control"
-authors = [{name = "OpenClaw Team", email = "team@openclaw.dev"}]
-readme = "README.md"
-requires-python = ">=3.12"
-
+description = "Shared Pydantic schemas and types for Mission Control"
 dependencies = [
-    "pydantic>=2.0",
+    "pydantic>=2.0.0",
 ]
+requires-python = ">=3.12"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["openclaw_mc_shared"]

@@ -1,33 +1,36 @@
 [project]
-name = "openclaw-mc-server"
+name = "mc-server"
 version = "0.1.0"
-description = "OpenClaw Mission Control Server (FastAPI)"
-authors = [{name = "OpenClaw Team", email = "team@openclaw.dev"}]
-readme = "README.md"
+description = "Mission Control API Server"
+dependencies = [
+    "fastapi[all]",
+    "sqlmodel",
+    "alembic",
+    "asyncpg",
+    "redis",
+    "arq",
+    "sse-starlette",
+    "bcrypt",
+    "pyjwt",
+    "python-multipart",
+    "pydantic-settings",
+    "structlog",
+]
 requires-python = ">=3.12"
 
-dependencies = [
-    "fastapi>=0.109.0",
-    "uvicorn>=0.27.0",
-    "sqlmodel>=0.0.16",
-    "asyncpg>=0.29.0",
-    "alembic>=1.13.0",
-    "pydantic>=2.6.0",
-    "python-dotenv>=1.0.0",
-    "structlog>=24.1.0",
-    "arq>=0.25.0",
-    "redis>=5.0.0",
-    "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.9",
-    "openclaw-mc-shared",  # Local dependency
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
 ]
-
-[tool.uv.sources]
-openclaw-mc-shared = { workspace = true }
-
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

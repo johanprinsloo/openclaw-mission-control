@@ -1,24 +1,18 @@
 [project]
-name = "openclaw-mc-bridge"
+name = "mc-bridge"
 version = "0.1.0"
-description = "OpenClaw Mission Control Bridge"
-authors = [{name = "OpenClaw Team", email = "team@openclaw.dev"}]
-readme = "README.md"
-requires-python = ">=3.12"
-
+description = "OpenClaw ↔ Mission Control Communications Bridge"
 dependencies = [
-    "openclaw-mc-shared",  # Local dependency
-    "httpx>=0.27.0",
-    "pydantic>=2.6.0",
-    "structlog>=24.1.0",
+    "httpx",
+    "structlog",
+    "pyyaml",
+    "aiosqlite",
 ]
-
-[tool.uv.sources]
-openclaw-mc-shared = { workspace = true }
-
-[tool.hatch.build.targets.wheel]
-packages = ["openclaw_mc_bridge"]
+requires-python = ">=3.12"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.scripts]
+mc-bridge = "mc_bridge.main:run"

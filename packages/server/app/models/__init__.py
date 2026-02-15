@@ -1,3 +1,4 @@
+# SQLModel definitions — imported here to ensure metadata is populated for Alembic.
 from .base import UUIDMixin, TimestampMixin
 from .organization import Organization
 from .project import Project
