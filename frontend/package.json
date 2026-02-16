@@ -13,6 +13,8 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@tailwindcss/vite": "^4.1.18",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-vue3": "^35.1.0",
     "axios": "^1.13.5",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.1.18",
