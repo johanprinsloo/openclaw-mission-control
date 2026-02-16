@@ -48,6 +48,8 @@ export function useSSE() {
       const taskStore = useTaskStore()
       taskStore.handleEvent(event)
     }
+    // message.created, mention.created, command.invoked handled via WebSocket
+    // SSE just ensures event log consistency
   }
 
   function scheduleReconnect(orgSlug: string) {
