@@ -1,14 +1,27 @@
 [project]
-name = "mc-bridge"
+name = "openclaw-mc-bridge"
 version = "0.1.0"
 description = "OpenClaw ↔ Mission Control Communications Bridge"
+readme = "README.md"
 dependencies = [
-    "httpx",
-    "structlog",
-    "pyyaml",
-    "aiosqlite",
+    "httpx>=0.27",
+    "structlog>=24.0",
+    "pyyaml>=6.0",
+    "aiosqlite>=0.20",
+    "aiohttp>=3.9",
+    "pydantic>=2.0",
 ]
 requires-python = ">=3.12"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
+    "sse-starlette>=2.0",
+    "httpx-sse>=0.4",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -16,3 +29,8 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 mc-bridge = "mc_bridge.main:run"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
