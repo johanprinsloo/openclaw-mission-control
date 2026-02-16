@@ -1,0 +1,32 @@
+# OpenClaw ↔ Mission Control Comms Bridge Configuration
+# Copy to comms-bridge.yaml and adjust for your environment.
+
+mission_control:
+  url: "https://mc.openclaw.dev"
+  verify_tls: true
+  request_timeout_seconds: 30
+  sse_heartbeat_interval_seconds: 30
+  sse_heartbeat_timeout_seconds: 90
+
+gateway:
+  url: "http://localhost:8080"
+  api_key_env: "OPENCLAW_GATEWAY_KEY"
+
+agents:
+  - name: "builder-agent-01"
+    api_key_env: "MC_API_KEY_BUILDER_01"
+    org_slug: "acme-robotics"
+    auto_subscribe: true
+    history_fetch_count: 50
+
+state:
+  db_path: "./data/bridge_state.db"
+
+logging:
+  level: "info"
+  format: "json"        # json | text
+
+metrics:
+  enabled: true
+  host: "127.0.0.1"
+  port: 9090
