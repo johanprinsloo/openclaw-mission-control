@@ -68,6 +68,7 @@ watch(orgSlug, (slug) => {
 const navItems = [
   { to: 'projects', label: 'Projects', icon: 'mdi-view-dashboard-outline' },
   { to: 'tasks', label: 'Tasks', icon: 'mdi-checkbox-marked-outline' },
+  { to: 'settings/users', label: 'Users', icon: 'mdi-account-group-outline' },
   { to: 'settings', label: 'Settings', icon: 'mdi-cog-outline' },
 ]
 </script>
