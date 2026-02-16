@@ -25,7 +25,7 @@ const router = createRouter({
         {
           path: 'tasks',
           name: 'tasks',
-          component: () => import('../views/PlaceholderView.vue'),
+          component: () => import('../views/TaskBoardView.vue'),
           meta: { title: 'Tasks' },
         },
         {
