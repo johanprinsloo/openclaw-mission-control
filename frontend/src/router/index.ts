@@ -19,7 +19,7 @@ const router = createRouter({
         {
           path: 'projects',
           name: 'projects',
-          component: () => import('../views/PlaceholderView.vue'),
+          component: () => import('../views/ProjectBoardView.vue'),
           meta: { title: 'Projects' },
         },
         {
