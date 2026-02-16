@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { useProjectStore } from '../stores/projects'
+import { useTaskStore } from '../stores/tasks'
 
 export type SSEStatus = 'disconnected' | 'connected' | 'reconnecting'
 
@@ -42,6 +43,10 @@ export function useSSE() {
     const prefix = event.type.split('.')[0]
     if (prefix === 'project') {
       projectStore.handleEvent(event)
+    }
+    if (prefix === 'task') {
+      const taskStore = useTaskStore()
+      taskStore.handleEvent(event)
     }
   }
 
