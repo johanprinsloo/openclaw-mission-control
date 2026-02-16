@@ -16,10 +16,21 @@ class TaskPriority(str, Enum):
 
 class ProjectStage(str, Enum):
     DEFINITION = "definition"
+    POC = "poc"
     DEVELOPMENT = "development"
+    TESTING = "testing"
     LAUNCH = "launch"
     MAINTENANCE = "maintenance"
-    END_OF_LIFE = "end-of-life"
+
+# Ordered list for transition validation
+PROJECT_STAGE_ORDER: list["ProjectStage"] = [
+    ProjectStage.DEFINITION,
+    ProjectStage.POC,
+    ProjectStage.DEVELOPMENT,
+    ProjectStage.TESTING,
+    ProjectStage.LAUNCH,
+    ProjectStage.MAINTENANCE,
+]
 
 class Role(str, Enum):
     ADMIN = "administrator"
