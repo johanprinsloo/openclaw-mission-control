@@ -40,6 +40,12 @@ const router = createRouter({
           component: () => import('../views/UsersView.vue'),
           meta: { title: 'Users', requiresAdmin: true },
         },
+        {
+          path: 'channels/:id',
+          name: 'channel',
+          component: () => import('../views/ChannelView.vue'),
+          meta: { title: 'Channel' },
+        },
       ],
     },
     {

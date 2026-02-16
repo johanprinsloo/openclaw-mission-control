@@ -28,6 +28,43 @@
           <v-icon size="18">{{ item.icon }}</v-icon>
           {{ item.label }}
         </router-link>
+
+        <!-- Channel List -->
+        <template v-if="channelStore.orgWideChannels.length > 0">
+          <div class="text-xs font-semibold uppercase tracking-wider mt-4 mb-2 px-2"
+               style="color: var(--text-tertiary);">Channels</div>
+          <router-link
+            v-for="ch in channelStore.orgWideChannels" :key="ch.id"
+            :to="`/orgs/${orgSlug}/channels/${ch.id}`"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-white/50 transition"
+            :class="{ 'bg-white/70 font-medium': $route.params.id === ch.id }"
+            style="color: var(--text-primary);">
+            <v-icon size="16">mdi-pound</v-icon>
+            <span class="truncate flex-1">{{ ch.name }}</span>
+            <span v-if="channelStore.unreadByChannel[ch.id]"
+                  class="w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
+              {{ channelStore.unreadByChannel[ch.id] > 9 ? '9+' : channelStore.unreadByChannel[ch.id] }}
+            </span>
+          </router-link>
+        </template>
+
+        <template v-if="channelStore.projectChannels.length > 0">
+          <div class="text-xs font-semibold uppercase tracking-wider mt-4 mb-2 px-2"
+               style="color: var(--text-tertiary);">Project Channels</div>
+          <router-link
+            v-for="ch in channelStore.projectChannels" :key="ch.id"
+            :to="`/orgs/${orgSlug}/channels/${ch.id}`"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-white/50 transition"
+            :class="{ 'bg-white/70 font-medium': $route.params.id === ch.id }"
+            style="color: var(--text-primary);">
+            <v-icon size="16">mdi-pound</v-icon>
+            <span class="truncate flex-1">{{ ch.name }}</span>
+            <span v-if="channelStore.unreadByChannel[ch.id]"
+                  class="w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
+              {{ channelStore.unreadByChannel[ch.id] > 9 ? '9+' : channelStore.unreadByChannel[ch.id] }}
+            </span>
+          </router-link>
+        </template>
       </nav>
 
       <!-- Main Content -->
@@ -41,7 +78,9 @@
             style="background: var(--surface-secondary); border-color: var(--border-default); color: var(--text-tertiary);">
       <span>SSE: Connected</span>
       <span class="mx-3">•</span>
-      <span>WS: Connected</span>
+      <span :style="{ color: wsStatus === 'connected' ? 'var(--text-tertiary)' : wsStatus === 'reconnecting' ? '#f59e0b' : '#ef4444' }">
+        WS: {{ wsStatus }}
+      </span>
       <span class="flex-1" />
       <span>v0.1.0</span>
     </footer>
@@ -49,13 +88,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useOrgStore } from '../stores/orgs'
+import { useChannelStore } from '../stores/channels'
+import { useWebSocket } from '../composables/useWebSocket'
 import OrgSwitcher from '../components/OrgSwitcher.vue'
 
 const route = useRoute()
 const orgStore = useOrgStore()
+
+const channelStore = useChannelStore()
+const { wsStatus, connect: wsConnect, disconnect: wsDisconnect } = useWebSocket()
 
 const orgSlug = computed(() => route.params.orgSlug as string)
 
@@ -63,7 +107,15 @@ watch(orgSlug, (slug) => {
   if (slug && slug !== orgStore.activeOrg?.slug) {
     orgStore.selectOrg(slug)
   }
+  if (slug) {
+    channelStore.fetchChannels(slug)
+    wsConnect(slug)
+  }
 }, { immediate: true })
+
+onUnmounted(() => {
+  wsDisconnect()
+})
 
 const navItems = [
   { to: 'projects', label: 'Projects', icon: 'mdi-view-dashboard-outline' },
