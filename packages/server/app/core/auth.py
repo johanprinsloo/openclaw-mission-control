@@ -202,7 +202,10 @@ async def _authenticate_jwt(
     )
     user_org = result.scalar_one_or_none()
     if not user_org:
+        print(f"DEBUG: UserOrg not found: user_id={user_id}, org_id={org.id}", flush=True)
         raise HTTPException(status_code=404, detail="Organization not found")
+    
+    print(f"DEBUG: UserOrg found: user_id={user_id}, org_id={org.id}, role={user_org.role}", flush=True)
 
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -306,11 +309,11 @@ async def get_authenticated_user(
     """Main authentication dependency. Tries API key first, then JWT cookie."""
     org = await _resolve_org(orgSlug, session)
 
-    # Set RLS org context
+    # Set RLS org context (must use text() with f-string, not parameters)
     await session.execute(
-        text("SET app.current_org_id = :org_id"),
-        {"org_id": str(org.id)},
+        text(f"SET app.current_org_id = '{str(org.id)}'")
     )
+    print(f"DEBUG: Set app.current_org_id = {org.id}", flush=True)
 
     # Try API key auth (agents)
     if authorization and authorization.startswith("Bearer "):
@@ -318,6 +321,7 @@ async def get_authenticated_user(
         if key.startswith("mc_ak_"):
             auth_user = await _authenticate_api_key(key, org, session)
             request.state.auth = auth_user
+            print(f"DEBUG: API key auth: user={auth_user.user_id}, role={auth_user.role}", flush=True)
             return auth_user
 
     # Try JWT cookie auth (humans)
@@ -325,6 +329,7 @@ async def get_authenticated_user(
     if token:
         auth_user = await _authenticate_jwt(token, org, session)
         request.state.auth = auth_user
+        print(f"DEBUG: JWT auth: user={auth_user.user_id}, role={auth_user.role}", flush=True)
         return auth_user
 
     raise HTTPException(status_code=401, detail="Authentication required")
@@ -338,9 +343,9 @@ async def get_authenticated_user_ws(
 ) -> AuthenticatedUser:
     """WebSocket authentication dependency."""
     org = await _resolve_org(orgSlug, session)
+    # Set RLS org context (must use text() with f-string, not parameters)
     await session.execute(
-        text("SET app.current_org_id = :org_id"),
-        {"org_id": str(org.id)},
+        text(f"SET app.current_org_id = '{str(org.id)}'")
     )
 
     # Try query param (agents)
@@ -380,6 +385,7 @@ async def require_admin(
     auth: AuthenticatedUser = Depends(get_authenticated_user),
 ) -> AuthenticatedUser:
     """Requires administrator role."""
+    print(f"DEBUG: require_admin check: user={auth.user_id}, role='{auth.role}'", flush=True)
     if auth.role != "administrator":
         raise HTTPException(status_code=403, detail="Administrator access required")
     return auth
