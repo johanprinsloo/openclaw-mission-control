@@ -15,6 +15,9 @@ dependencies = [
     "python-multipart",
     "pydantic-settings",
     "structlog",
+    "greenlet",
+    "passlib[bcrypt]",
+    "mc-shared",
 ]
 requires-python = ">=3.12"
 
@@ -34,3 +37,9 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv.sources]
+mc-shared = { workspace = true }

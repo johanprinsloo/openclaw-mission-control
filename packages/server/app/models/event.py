@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -25,4 +26,5 @@ class Event(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         primary_key=True,
         sa_column_kwargs={"server_default": "now()"},
+        sa_type=sa.DateTime(timezone=True),
     )

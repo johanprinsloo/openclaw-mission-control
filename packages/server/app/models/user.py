@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
 from .base import UUIDMixin
@@ -20,5 +21,8 @@ class User(UUIDMixin, SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
-        sa_column_kwargs={"server_default": "now()"},
+        sa_column_kwargs={
+            "server_default": sa.text("now()"),
+        },
+        sa_type=sa.DateTime(timezone=True),
     )

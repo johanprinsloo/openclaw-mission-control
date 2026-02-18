@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
 from .base import UUIDMixin
@@ -24,7 +25,8 @@ class SubAgent(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
         sa_column_kwargs={"server_default": "now()"},
+        sa_type=sa.DateTime(timezone=True),
     )
-    expires_at: datetime = Field(nullable=False)
-    terminated_at: Optional[datetime] = None
+    expires_at: datetime = Field(nullable=False, sa_type=sa.DateTime(timezone=True))
+    terminated_at: Optional[datetime] = Field(default=None, sa_type=sa.DateTime(timezone=True))
     termination_reason: Optional[str] = None

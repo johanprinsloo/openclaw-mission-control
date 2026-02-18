@@ -90,6 +90,7 @@ def upgrade() -> None:
         sa.Column("identifier", sa.Text(), nullable=True),
         sa.Column("oidc_provider", sa.Text(), nullable=True),
         sa.Column("oidc_subject", sa.Text(), nullable=True),
+        sa.Column("password_hash", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
     )
     op.create_index("idx_users_email", "users", ["email"], unique=True)
@@ -102,6 +103,8 @@ def upgrade() -> None:
         sa.Column("role", sa.Text(), nullable=False),
         sa.Column("display_name", sa.Text(), nullable=False),
         sa.Column("api_key_hash", sa.Text(), nullable=True),
+        sa.Column("api_key_previous_hash", sa.Text(), nullable=True),
+        sa.Column("api_key_previous_expires_at", sa.Text(), nullable=True),
     )
 
     # projects
