@@ -17,7 +17,7 @@ class TaskEvidence(SQLModel, table=True):
     type: str = Field(nullable=False)  # pr_link | test_results | doc_url
     url: str = Field(nullable=False)
     submitted_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         nullable=False,
     )
     submitted_by: uuid.UUID = Field(foreign_key="users.id", nullable=False)

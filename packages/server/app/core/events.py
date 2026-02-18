@@ -62,7 +62,7 @@ async def broadcast_event(
         actor_id=actor_id,
         actor_type=actor_type,
         payload=payload,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.utcnow(),
     )
     session.add(new_event)
     await session.commit()

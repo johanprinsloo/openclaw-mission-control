@@ -280,7 +280,7 @@ async def transition_task(
     old_status = task.status
     task.status = to_status.value
     if to_status == TaskStatus.COMPLETE:
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.utcnow()
     elif old_status == TaskStatus.COMPLETE.value:
         task.completed_at = None  # reopen
 

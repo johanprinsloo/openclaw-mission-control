@@ -25,7 +25,7 @@ class Message(SQLModel, table=True):
         sa_column=sa.Column(ARRAY(UUID(as_uuid=True)), server_default="{}"),
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         primary_key=True,
         sa_column_kwargs={"server_default": "now()"},
         sa_type=sa.DateTime(timezone=True),

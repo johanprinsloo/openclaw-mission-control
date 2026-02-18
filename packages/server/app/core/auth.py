@@ -108,7 +108,7 @@ def create_jwt(
 ) -> tuple[str, str]:
     """Create a signed JWT. Returns (token, jti)."""
     jti = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     exp = now + (expires_delta or timedelta(minutes=settings.jwt_expire_minutes))
     payload = {
         "sub": str(user_id),
@@ -202,10 +202,7 @@ async def _authenticate_jwt(
     )
     user_org = result.scalar_one_or_none()
     if not user_org:
-        print(f"DEBUG: UserOrg not found: user_id={user_id}, org_id={org.id}", flush=True)
         raise HTTPException(status_code=404, detail="Organization not found")
-    
-    print(f"DEBUG: UserOrg found: user_id={user_id}, org_id={org.id}, role={user_org.role}", flush=True)
 
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -238,7 +235,7 @@ async def _authenticate_api_key(
         for sa in sub_agents:
             if sa.api_key_hash and verify_api_key(key, sa.api_key_hash):
                 # Check expiry
-                if sa.expires_at < datetime.now(timezone.utc):
+                if sa.expires_at < datetime.utcnow():
                     raise HTTPException(status_code=401, detail="Ephemeral key expired")
                 # Get the creating user's org membership for role
                 result = await session.execute(
@@ -283,8 +280,8 @@ async def _authenticate_api_key(
                     try:
                         expires = datetime.fromisoformat(uo.api_key_previous_expires_at)
                     except (ValueError, TypeError):
-                        expires = datetime.min.replace(tzinfo=timezone.utc)
-                    if expires > datetime.now(timezone.utc) and verify_api_key(
+                        expires = datetime.min
+                    if expires > datetime.utcnow() and verify_api_key(
                         key, uo.api_key_previous_hash
                     ):
                         result = await session.execute(
@@ -313,15 +310,12 @@ async def get_authenticated_user(
     await session.execute(
         text(f"SET app.current_org_id = '{str(org.id)}'")
     )
-    print(f"DEBUG: Set app.current_org_id = {org.id}", flush=True)
-
     # Try API key auth (agents)
     if authorization and authorization.startswith("Bearer "):
         key = authorization[7:].strip()
         if key.startswith("mc_ak_"):
             auth_user = await _authenticate_api_key(key, org, session)
             request.state.auth = auth_user
-            print(f"DEBUG: API key auth: user={auth_user.user_id}, role={auth_user.role}", flush=True)
             return auth_user
 
     # Try JWT cookie auth (humans)
@@ -329,7 +323,6 @@ async def get_authenticated_user(
     if token:
         auth_user = await _authenticate_jwt(token, org, session)
         request.state.auth = auth_user
-        print(f"DEBUG: JWT auth: user={auth_user.user_id}, role={auth_user.role}", flush=True)
         return auth_user
 
     raise HTTPException(status_code=401, detail="Authentication required")
@@ -385,7 +378,6 @@ async def require_admin(
     auth: AuthenticatedUser = Depends(get_authenticated_user),
 ) -> AuthenticatedUser:
     """Requires administrator role."""
-    print(f"DEBUG: require_admin check: user={auth.user_id}, role='{auth.role}'", flush=True)
     if auth.role != "administrator":
         raise HTTPException(status_code=403, detail="Administrator access required")
     return auth

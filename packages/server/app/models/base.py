@@ -7,7 +7,7 @@ import uuid
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 class TimestampMixin(SQLModel):

@@ -19,7 +19,7 @@ class User(UUIDMixin, SQLModel, table=True):
     oidc_subject: Optional[str] = None
     password_hash: Optional[str] = Field(default=None)  # bcrypt hash for email/password login
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         nullable=False,
         sa_column_kwargs={
             "server_default": sa.text("now()"),
