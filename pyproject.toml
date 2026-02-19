@@ -3,7 +3,9 @@ name = "openclaw-mission-control"
 version = "0.1.0"
 description = "Mission Control for OpenClaw agents and human teams"
 authors = [{ name = "Johan Prinsloo", email = "johan.a.prinsloo@gmail.com" }]
-dependencies = []
+dependencies = [
+    "bcrypt==4.0.1",
+]
 requires-python = ">=3.12"
 
 [tool.uv]

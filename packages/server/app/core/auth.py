@@ -108,7 +108,7 @@ def create_jwt(
 ) -> tuple[str, str]:
     """Create a signed JWT. Returns (token, jti)."""
     jti = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     exp = now + (expires_delta or timedelta(minutes=settings.jwt_expire_minutes))
     payload = {
         "sub": str(user_id),
@@ -235,7 +235,7 @@ async def _authenticate_api_key(
         for sa in sub_agents:
             if sa.api_key_hash and verify_api_key(key, sa.api_key_hash):
                 # Check expiry
-                if sa.expires_at < datetime.now(timezone.utc):
+                if sa.expires_at < datetime.utcnow():
                     raise HTTPException(status_code=401, detail="Ephemeral key expired")
                 # Get the creating user's org membership for role
                 result = await session.execute(
@@ -280,8 +280,8 @@ async def _authenticate_api_key(
                     try:
                         expires = datetime.fromisoformat(uo.api_key_previous_expires_at)
                     except (ValueError, TypeError):
-                        expires = datetime.min.replace(tzinfo=timezone.utc)
-                    if expires > datetime.now(timezone.utc) and verify_api_key(
+                        expires = datetime.min
+                    if expires > datetime.utcnow() and verify_api_key(
                         key, uo.api_key_previous_hash
                     ):
                         result = await session.execute(
@@ -306,12 +306,10 @@ async def get_authenticated_user(
     """Main authentication dependency. Tries API key first, then JWT cookie."""
     org = await _resolve_org(orgSlug, session)
 
-    # Set RLS org context
+    # Set RLS org context (must use text() with f-string, not parameters)
     await session.execute(
-        text("SET app.current_org_id = :org_id"),
-        {"org_id": str(org.id)},
+        text(f"SET app.current_org_id = '{str(org.id)}'")
     )
-
     # Try API key auth (agents)
     if authorization and authorization.startswith("Bearer "):
         key = authorization[7:].strip()
@@ -338,9 +336,9 @@ async def get_authenticated_user_ws(
 ) -> AuthenticatedUser:
     """WebSocket authentication dependency."""
     org = await _resolve_org(orgSlug, session)
+    # Set RLS org context (must use text() with f-string, not parameters)
     await session.execute(
-        text("SET app.current_org_id = :org_id"),
-        {"org_id": str(org.id)},
+        text(f"SET app.current_org_id = '{str(org.id)}'")
     )
 
     # Try query param (agents)

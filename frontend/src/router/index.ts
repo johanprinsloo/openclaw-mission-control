@@ -4,6 +4,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
       path: '/orgs',
       name: 'org-select',
       component: () => import('../views/OrgSelectView.vue'),
@@ -50,7 +55,7 @@ const router = createRouter({
     },
     {
       path: '/',
-      redirect: '/orgs',
+      redirect: '/login',
     },
   ],
 })

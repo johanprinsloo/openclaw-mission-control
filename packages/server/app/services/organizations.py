@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.models.channel import Channel
 from app.models.organization import Organization
 from app.models.user_org import UserOrg
 
@@ -91,6 +92,15 @@ async def create_org(
         display_name=creator_display_name,
     )
     session.add(membership)
+    await session.flush()
+
+    # Create default org-wide channel
+    default_channel = Channel(
+        org_id=org.id,
+        name="general",
+        type="org_wide",
+    )
+    session.add(default_channel)
     await session.flush()
 
     log.info("org.created", org_id=str(org.id), slug=req.slug, creator=str(creator_id))

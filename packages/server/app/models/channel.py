@@ -18,7 +18,7 @@ class Channel(SQLModel, table=True):
     name: str = Field(nullable=False)
     type: str = Field(nullable=False)  # org_wide | project
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         nullable=False,
         sa_column_kwargs={"server_default": "now()"},
     )

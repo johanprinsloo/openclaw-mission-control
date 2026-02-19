@@ -5,9 +5,20 @@ set -e
 
 echo "🚀 Starting Mission Control Development Environment"
 
+# Determine the compose command
+if docker compose version > /dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif docker-compose --version > /dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    echo "❌ Error: Neither 'docker compose' nor 'docker-compose' was found."
+    echo "   Please install Docker Compose: 'brew install docker-compose'"
+    exit 1
+fi
+
 # Start PostgreSQL and Redis
-echo "📦 Starting PostgreSQL and Redis..."
-docker compose -f docker/docker-compose.dev.yml up -d
+echo "📦 Starting PostgreSQL and Redis with $COMPOSE_CMD..."
+$COMPOSE_CMD -f docker/docker-compose.dev.yml up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."

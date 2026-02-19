@@ -22,8 +22,9 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Content-Security-Policy": (
         "default-src 'self'; "
-        "script-src 'self'; "
-        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://fastapi.tiangolo.com; "
         "connect-src 'self' wss://*.openclaw.dev; "
         "frame-ancestors 'none';"
     ),
@@ -58,6 +59,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         # Skip for safe methods
         if request.method in SAFE_METHODS:
+            return await call_next(request)
+
+        # Skip for login/register (allow getting new session/csrf)
+        if request.url.path in ("/auth/login", "/auth/register"):
             return await call_next(request)
 
         # Skip for API key auth (agents don't use cookies)

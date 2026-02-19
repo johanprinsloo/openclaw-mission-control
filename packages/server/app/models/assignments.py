@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 import uuid
 
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
 
@@ -23,6 +24,7 @@ class ProjectUserAssignment(SQLModel, table=True):
     assigned_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
+        sa_type=sa.DateTime(timezone=True),
     )
 
 

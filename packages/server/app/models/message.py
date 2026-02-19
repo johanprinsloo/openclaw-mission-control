@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List
 import uuid
 
-from sqlalchemy import Column
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlmodel import Field, SQLModel
 
@@ -22,10 +22,11 @@ class Message(SQLModel, table=True):
     content: str = Field(nullable=False)
     mentions: List[uuid.UUID] = Field(
         default_factory=list,
-        sa_column=Column(ARRAY(UUID(as_uuid=True)), server_default="{}"),
+        sa_column=sa.Column(ARRAY(UUID(as_uuid=True)), server_default="{}"),
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.utcnow(),
         primary_key=True,
         sa_column_kwargs={"server_default": "now()"},
+        sa_type=sa.DateTime(timezone=True),
     )

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import sys
 
 import structlog
@@ -31,7 +32,7 @@ def configure_logging(level: str = "info", fmt: str = "json") -> None:
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(level)
+            logging.getLevelName(level.upper())
         ),
     )
 
