@@ -1,0 +1,21 @@
+mission_control:
+  url: "http://localhost:8000"
+  verify_tls: false
+  request_timeout_seconds: 30
+
+gateway:
+  url: "http://127.0.0.1:18789" #"ws://127.0.0.1:18789"
+  api_key_env: "OPENCLAW_OPERATOR_TOKEN"
+
+agents:
+  - name: "local-test-agent"
+    api_key_env: "MC_LOCAL_AGENT_KEY"
+    org_slug: "org2"
+    auto_subscribe: true
+
+state:
+  db_path: "./data/bridge_state.db"
+
+logging:
+  level: "debug"
+  format: "text"

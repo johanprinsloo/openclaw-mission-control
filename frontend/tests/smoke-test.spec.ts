@@ -89,5 +89,42 @@ test.describe('Mission Control Smoke Test', () => {
     
     // Take a screenshot for verification
     await page.screenshot({ path: 'test-results/smoke-test-kanban.png' })
+
+    // 10. Verify Bridge Communication
+    // After project and task creation (which creates the general channel), 
+    // we interact with the bridge by posting a message to the general channel 
+    // and checking if the bridge (listening to events) processes it.
+    
+    console.log('Verifying bridge communication...')
+    
+    // Get the general channel ID
+    const channelsResponse = await page.evaluate(async () => {
+        const res = await fetch('/api/v1/orgs/default/channels', {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return res.json();
+    });
+    
+    const generalChannel = channelsResponse.data.find((c: any) => c.name === 'general');
+    expect(generalChannel).toBeDefined();
+    const channelId = generalChannel.id;
+    
+    // Post a message to the general channel (simulating bridge interaction)
+    const postResponse = await page.evaluate(async (chId) => {
+        const res = await fetch(`/api/v1/orgs/default/channels/${chId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: 'Bridge verification test message' })
+        });
+        return res.json();
+    }, channelId);
+    
+    expect(postResponse.id).toBeDefined();
+    console.log('Message posted to channel:', postResponse.id);
+
+    // Verify bridge communication loop by waiting for a response from the local-test-agent
+    // (Assuming the bridge or a mock agent responds with 'Echo: Bridge verification test message')
+    await expect(page.locator('.v-application:has-text("Echo: Bridge verification test message")')).toBeVisible({ timeout: 10000 });
+    console.log('Bridge verification passed.');
   })
 })

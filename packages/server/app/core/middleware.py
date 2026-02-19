@@ -61,6 +61,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in SAFE_METHODS:
             return await call_next(request)
 
+        # Skip for login/register (allow getting new session/csrf)
+        if request.url.path in ("/auth/login", "/auth/register"):
+            return await call_next(request)
+
         # Skip for API key auth (agents don't use cookies)
         if request.headers.get("Authorization"):
             return await call_next(request)
