@@ -39,7 +39,7 @@ aws lightsail create-container-service \
     --region "${REGION}" \
     --public-domain-names "{}" 2>/dev/null || true
 
-# Create deployment
+# Create deployment with Redis sidecar (cost-effective for dev)
 echo "🚀 Deploying containers..."
 aws lightsail create-container-service-deployment \
     --service-name "${INSTANCE_NAME}" \
@@ -51,8 +51,15 @@ aws lightsail create-container-service-deployment \
             \"environment\": {
                 \"MC_DEBUG\": \"false\",
                 \"MC_DATABASE_URL\": \"${MC_DATABASE_URL}\",
-                \"MC_REDIS_URL\": \"${MC_REDIS_URL}\",
-                \"MC_SECRET_KEY\": \"${MC_SECRET_KEY}\"
+                \"MC_REDIS_URL\": \"redis://localhost:6379/0\",
+                \"MC_SECRET_KEY\": \"${MC_SECRET_KEY}\",
+                \"MC_CORS_ORIGINS\": \"[\\\"*\\\"]\"
+            }
+        },
+        \"redis\": {
+            \"image\": \"redis:7-alpine\",
+            \"environment\": {
+                \"REDIS_ARGS\": \"--maxmemory 128mb --maxmemory-policy allkeys-lru\"
             }
         }
     }" \

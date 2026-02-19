@@ -2,62 +2,115 @@
 
 This guide covers deploying Mission Control to AWS. We offer two deployment options:
 
-1. **AWS Lightsail** (Recommended for getting started) - Simple, cost-effective, managed containers
+1. **AWS Lightsail** (Recommended for getting started) - Simple, cost-effective, managed containers with **in-container Redis**
 2. **AWS CDK/ECS** (Recommended for production) - Full infrastructure as code, auto-scaling, managed databases
 
-## Option 1: AWS Lightsail (Easiest)
+## Option 1: AWS Lightsail (Easiest & Cheapest)
 
 AWS Lightsail provides a simple container service that's perfect for getting started. It handles load balancing, SSL, and container orchestration automatically.
+
+### Architecture
+
+This deployment uses a **sidecar pattern** with Redis running in the same container service as the application:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│          Lightsail Container Service                      │
+│  ┌──────────────────┐  ┌──────────────────┐             │
+│  │   Mission Control │  │   Redis (sidecar) │             │
+│  │   (FastAPI app)   │  │   (localhost:6379)│             │
+│  └──────────────────┘  └──────────────────┘             │
+└─────────────────────────────────────────────────────────┘
+         │
+    ┌────┴────┐
+Lightsail    Lightsail
+PostgreSQL   Managed SSL/ALB
+```
+
+**Why in-container Redis?**
+- ✅ **Saves ~$15/month** (no separate Redis service)
+- ✅ **Zero latency** (same network namespace)
+- ✅ **Sufficient for light usage** (ARQ tasks, WebSocket pub/sub)
+- ⚠️ **Data not persisted** across container restarts (cache rebuilds - acceptable for dev)
 
 ### Prerequisites
 
 - AWS CLI installed and configured
 - Docker installed locally
+- PostgreSQL database (Lightsail managed or external)
 - Environment variables set:
   ```bash
   export MC_DATABASE_URL="postgresql+asyncpg://..."
-  export MC_REDIS_URL="redis://..."
   export MC_SECRET_KEY="your-production-secret"
   ```
 
-### External Database & Redis
+### External Database
 
-For Lightsail deployment, you'll need external database and Redis services:
+For Lightsail deployment, you'll need an external PostgreSQL service:
 
-**Option A: AWS Lightsail Databases**
-- Create a Lightsail PostgreSQL database
-- Create a Lightsail Redis database
-- Connect them to your container service
+**Option A: AWS Lightsail Databases** (Recommended)
+- Create a Lightsail PostgreSQL database (~$15/month)
+- Automatic backups and managed updates
 
-**Option B: Managed Services**
-- RDS PostgreSQL (recommended for production)
-- ElastiCache Redis
+**Option B: RDS PostgreSQL**
+- More features but higher cost (~$13/month + data transfer)
 
 ### Deploy
 
 ```bash
 cd infrastructure/aws
 
-# Deploy to Lightsail
+# Deploy to Lightsail (includes in-container Redis)
 ./deploy-lightsail.sh
 ```
 
 The script will:
 1. Build your Docker image
 2. Push it to Lightsail Container Registry
-3. Deploy the container service
-4. Configure public endpoint
+3. Deploy the container service with **both app and Redis containers**
+4. Configure public endpoint with SSL
 
 ### Costs (approximate)
 
-- Lightsail Container Service (nano): $7/month
-- Lightsail PostgreSQL (db.micro): $15/month
-- Lightsail Redis (cache.micro): $15/month
-- **Total: ~$37/month**
+| Component | Service | Cost |
+|-----------|---------|------|
+| **Container Service** | Lightsail Nano | **$7/month** |
+| **PostgreSQL** | Lightsail Database | **$15/month** |
+| **Redis** | In-container (sidecar) | **$0/month** ✅ |
+| **Total** | | **~$22/month** |
+
+**Savings vs external Redis:** ~$15/month
+
+### When to Upgrade to External Redis
+
+The in-container Redis is perfect for:
+- ✅ Development/testing
+- ✅ Light production usage (< 100 concurrent users)
+- ✅ ARQ task queue and WebSocket pub/sub
+
+**Upgrade to Lightsail Redis or ElastiCache when:**
+- 🚀 High availability requirements (99.9% uptime SLA)
+- 📊 Large cache datasets (> 500MB)
+- 🔄 Zero-downtime deployments (in-container Redis restarts with app)
+- 🌐 Multi-AZ deployment needs
+
+**Upgrade path:** Simply change `MC_REDIS_URL` from `redis://localhost:6379/0` to your external Redis endpoint.
 
 ## Option 2: AWS CDK (Full Infrastructure)
 
 For production deployments with auto-scaling, managed services, and infrastructure as code.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     VPC                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │   ECS        │  │   RDS        │  │ ElastiCache  │ │
+│  │   Fargate    │  │   PostgreSQL │  │   Redis      │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
 
 ### Prerequisites
 
@@ -78,7 +131,7 @@ pip install -r requirements.txt
 cdk deploy MissionControlDev
 
 # Or deploy production stack
-cdk deploy MissionControlProd -c environment=prod
+ck deploy MissionControlProd -c environment=prod
 ```
 
 ### What Gets Created
