@@ -93,44 +93,57 @@ This guide provides step-by-step instructions for manually deploying Mission Con
 
 ## GitHub Repository Configuration
 
-### Step 1: Add GitHub Secrets
+### Step 1: Add GitHub Secrets (Sensitive Data)
 
-1. **Navigate to Repository Settings**:
-   - Go to your GitHub repo: `https://github.com/johanprinsloo/openclaw-mission-control`
-   - Click **Settings > Secrets and variables > Actions**
-   - Click **"New repository secret"**
+Navigate to **Settings > Secrets and variables > Actions > Secrets tab**:
 
-2. **Add AWS Credentials** (for Lightsail deployment):
-   - Name: `AWS_ACCESS_KEY_ID`
-   - Value: Your IAM user's Access Key ID from Step 1
-   
-   - Name: `AWS_SECRET_ACCESS_KEY`
-   - Value: Your IAM user's Secret Access Key from Step 1
-   
-   - Name: `AWS_REGION`
-   - Value: `us-west-2` (or your chosen region)
-   
-   - Name: `LIGHTSAIL_SERVICE_NAME`
-   - Value: `mission-control-prod` (or your service name)
+**AWS Credentials (Required):**
+- Name: `AWS_ACCESS_KEY_ID`
+  - Value: Your IAM user's Access Key ID
+  
+- Name: `AWS_SECRET_ACCESS_KEY`
+  - Value: Your IAM user's Secret Access Key
 
-3. **Add Database Secrets**:
-   - Name: `DATABASE_URL`
-   - Value: `postgresql+asyncpg://postgres:YOUR_PASSWORD@mission-control-db.xyz.us-west-2.rds.amazonaws.com:5432/mission_control`
-   - **IMPORTANT**: Replace `YOUR_PASSWORD` with the actual database password
-   
-   - Name: `DATABASE_PASSWORD`
-   - Value: Just the password (for backup/reference)
+**Database & App Secrets (Required):**
+- Name: `DATABASE_URL`
+  - Value: Full connection string with password: `postgresql+asyncpg://postgres:PASSWORD@host:5432/mission_control`
+  
+- Name: `SECRET_KEY`
+  - Value: Generate with: `openssl rand -base64 32`
 
-4. **Add Application Secrets**:
-   - Name: `SECRET_KEY`
-   - Value: Generate a secure random string (e.g., `openssl rand -base64 32`)
-   
-   - Name: `CORS_ORIGINS`
-   - Value: `["https://your-domain.com", "https://your-app.lightsailapp.com"]`
+### Step 2: Add GitHub Variables (Non-Sensitive Config)
 
-5. **Add Optional Secrets** (for notifications):
-   - Name: `SIGNAL_API_KEY` (if using Signal notifications)
-   - Name: `DISCORD_WEBHOOK` (if using Discord notifications)
+Navigate to **Settings > Secrets and variables > Actions > Variables tab** (these are editable!):
+
+**AWS Configuration:**
+- Name: `AWS_REGION`
+  - Value: `us-west-2` (or your region)
+  
+- Name: `LIGHTSAIL_SERVICE_NAME`
+  - Value: `mission-control-prod` (or your service name)
+
+**Application Configuration:**
+- Name: `CORS_ORIGINS`
+  - Value: `["*"]` (for dev) or `["https://yourdomain.com"]` (for production)
+  - Note: Can be edited anytime without regenerating
+
+### Step 3: Optional Secrets
+
+- `SIGNAL_API_KEY` - For Signal notifications
+- `SENTRY_DSN` - For error tracking
+
+### Why Variables vs Secrets?
+
+| Type | Use For | Editable? | Visible? |
+|------|---------|-----------|----------|
+| **Secrets** | Passwords, API keys, tokens | ❌ No (must recreate) | ❌ Masked in logs |
+| **Variables** | Config, regions, service names | ✅ Yes (edit anytime) | ✅ Visible in UI |
+
+**Benefits of using Variables:**
+- ✅ Change service name without recreating secret
+- ✅ View current region in GitHub UI
+- ✅ Team members can see config without accessing secrets
+- ✅ Audit trail of variable changes
 
 ### Step 2: Enable GitHub Actions
 

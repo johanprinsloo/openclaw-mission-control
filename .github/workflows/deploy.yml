@@ -1,0 +1,152 @@
+name: Deploy to AWS Lightsail
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  LIGHTSAIL_SERVICE_NAME: ${{ vars.LIGHTSAIL_SERVICE_NAME }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: 'latest'
+
+    - name: Install dependencies
+      run: |
+        cd packages/server
+        uv sync --dev
+
+    - name: Run tests
+      run: |
+        cd packages/server
+        uv run pytest tests/ -v --tb=short
+      env:
+        MC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        MC_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        MC_DEBUG: 'true'
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    name: Build and Deploy to Lightsail
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t mission-control:${{ github.sha }} .
+        docker tag mission-control:${{ github.sha }} mission-control:latest
+
+    - name: Push to Lightsail Container Registry
+      run: |
+        aws lightsail push-container-image \
+          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+          --label app \
+          --image mission-control:latest \
+          --region ${{ vars.AWS_REGION }}
+
+    - name: Get container image digest
+      id: get-image
+      run: |
+        IMAGE_DIGEST=$(aws lightsail get-container-images \
+          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'containerImages[0].image' \
+          --output text)
+        echo "image=$IMAGE_DIGEST" >> $GITHUB_OUTPUT
+
+    - name: Deploy to Lightsail
+      run: |
+        aws lightsail create-container-service-deployment \
+          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+          --region ${{ vars.AWS_REGION }} \
+          --containers "{
+            \"app\": {
+              \"image\": \"${{ steps.get-image.outputs.image }}\",
+              \"ports\": {\"8000\": \"HTTP\"},
+              \"environment\": {
+                \"MC_DEBUG\": \"false\",
+                \"MC_DATABASE_URL\": \"${{ secrets.DATABASE_URL }}\",
+                \"MC_SECRET_KEY\": \"${{ secrets.SECRET_KEY }}\",
+                \"MC_CORS_ORIGINS\": \"${{ vars.CORS_ORIGINS }}\",
+                \"MC_REDIS_URL\": \"redis://localhost:6379/0\"
+              }
+            },
+            \"redis\": {
+              \"image\": \"redis:7-alpine\",
+              \"environment\": {
+                \"REDIS_ARGS\": \"--maxmemory 128mb --maxmemory-policy allkeys-lru\"
+              }
+            }
+          }" \
+          --public-endpoint "{
+            \"containerName\": \"app\",
+            \"containerPort\": 8000,
+            \"healthCheck\": {
+              \"path\": \"/health\",
+              \"intervalSeconds\": 30,
+              \"timeoutSeconds\": 5,
+              \"healthyThreshold\": 2,
+              \"unhealthyThreshold\": 3
+            }
+          }"
+
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for deployment to complete..."
+        aws lightsail wait container-service-deployment-complete \
+          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+          --region ${{ vars.AWS_REGION }}
+        echo "Deployment complete!"
+
+    - name: Get deployment URL
+      run: |
+        URL=$(aws lightsail get-container-services \
+          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'containerServices[0].url' \
+          --output text)
+        echo "Deployed to: $URL"
+        echo "DEPLOYMENT_URL=$URL" >> $GITHUB_ENV
+
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✅ Deployment successful!"
+        echo "🌐 Application URL: ${{ env.DEPLOYMENT_URL }}"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
