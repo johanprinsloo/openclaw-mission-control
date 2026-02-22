@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:  # Allows manual triggering from the GitHub Actions UI
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -67,6 +68,20 @@ jobs:
       run: |
         docker build -t mission-control:${{ github.sha }} .
         docker tag mission-control:${{ github.sha }} mission-control:latest
+
+    - name: Ensure Lightsail Service exists
+      run: |
+        # Try to get service, create if it doesn't exist
+        if ! aws lightsail get-container-services --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} --region ${{ vars.AWS_REGION }} > /dev/null 2>&1; then
+          echo "📝 Creating new Lightsail container service: ${{ vars.LIGHTSAIL_SERVICE_NAME }}"
+          aws lightsail create-container-service \
+            --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+            --power nano \
+            --scale 1 \
+            --region ${{ vars.AWS_REGION }}
+        else
+          echo "✅ Service ${{ vars.LIGHTSAIL_SERVICE_NAME }} already exists."
+        fi
 
     - name: Push to Lightsail Container Registry
       run: |
