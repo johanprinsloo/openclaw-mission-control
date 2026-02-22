@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd packages/server
-        uv sync --dev
+        uv sync --group dev
 
     - name: Run tests
       run: |
