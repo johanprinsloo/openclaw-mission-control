@@ -113,7 +113,3 @@ Design documents and specifications are in the `docs/` directory:
 - [Frontend Architecture](docs/mission-control-frontend-architecture.md)
 - [Comms Bridge Spec](docs/mission-control-comms-bridge-spec.md)
 - [Implementation Plan](docs/mission-control-implementation-plan.md)
-
-## License
-
-MIT
