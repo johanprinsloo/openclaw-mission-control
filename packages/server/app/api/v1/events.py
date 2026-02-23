@@ -8,7 +8,6 @@ SSE Event Streaming endpoints.
 
 from __future__ import annotations
 
-import json
 from typing import Optional
 from uuid import UUID
 
@@ -122,8 +121,7 @@ async def get_subscriptions(
 
     return SubscriptionList(
         subscriptions=[
-            SubscriptionItem(topic_type=s.topic_type, topic_id=str(s.topic_id))
-            for s in subs
+            SubscriptionItem(topic_type=s.topic_type, topic_id=str(s.topic_id)) for s in subs
         ]
     )
 

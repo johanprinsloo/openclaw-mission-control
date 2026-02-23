@@ -14,17 +14,14 @@ Tests cover:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.core.chat import ConnectionInfo, ConnectionManager
 from app.core.events import (
-    BUFFER_SIZE,
     MAX_CONNECTIONS_PER_ORG,
     _matches_subscriptions,
     _replay_from_buffer,
@@ -51,7 +48,9 @@ class TestSubscriptionFiltering:
 
     def test_project_subscription_no_match(self):
         subs = [{"topic_type": "project", "topic_id": str(uuid.uuid4())}]
-        assert _matches_subscriptions("task.created", {"project_id": str(uuid.uuid4())}, subs) is False
+        assert (
+            _matches_subscriptions("task.created", {"project_id": str(uuid.uuid4())}, subs) is False
+        )
 
     def test_task_subscription_matches(self):
         tid = str(uuid.uuid4())

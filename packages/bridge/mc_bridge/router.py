@@ -65,9 +65,7 @@ class EventRouter:
 
         # Persist cursor
         if event.sequence_id:
-            await self._state.save_cursor(
-                self._agent.name, self._agent.org_slug, event.sequence_id
-            )
+            await self._state.save_cursor(self._agent.name, self._agent.org_slug, event.sequence_id)
 
     async def _handle_message(self, payload: dict[str, Any]) -> None:
         # Self-loop prevention
@@ -118,9 +116,7 @@ class EventRouter:
             session=session_key,
         )
 
-        output = await self._relay.forward_command_to_gateway(
-            session_key, command, args
-        )
+        output = await self._relay.forward_command_to_gateway(session_key, command, args)
         if output:
             await self._relay.post_to_mc(
                 channel_id,
@@ -164,7 +160,11 @@ class EventRouter:
             log.info("router.unsubscribe", topic=topic)
         elif subcmd == "subscriptions":
             topics = self._subscriptions.list_topics()
-            msg = "📋 Active subscriptions:\n" + "\n".join(f"  • {t}" for t in topics) if topics else "No active subscriptions."
+            msg = (
+                "📋 Active subscriptions:\n" + "\n".join(f"  • {t}" for t in topics)
+                if topics
+                else "No active subscriptions."
+            )
             await self._relay.post_to_mc(
                 channel_id,
                 msg,
@@ -184,8 +184,11 @@ class EventRouter:
         if channel_id:
             session_key = f"mc:{self._agent.org_slug}:project:{project_id}"
             await self._state.create_session_mapping(
-                session_key, self._agent.name, self._agent.org_slug,
-                channel_id, "project",
+                session_key,
+                self._agent.name,
+                self._agent.org_slug,
+                channel_id,
+                "project",
             )
             log.info("router.assignment", project=project_id, channel=channel_id)
 
@@ -205,8 +208,11 @@ class EventRouter:
         if sub_agent_id and channel_id:
             session_key = f"mc:{self._agent.org_slug}:sub:{sub_agent_id}"
             await self._state.create_session_mapping(
-                session_key, self._agent.name, self._agent.org_slug,
-                channel_id, "sub_agent",
+                session_key,
+                self._agent.name,
+                self._agent.org_slug,
+                channel_id,
+                "sub_agent",
             )
             log.info("router.sub_agent_created", sub_agent=sub_agent_id)
 
@@ -226,8 +232,11 @@ class EventRouter:
         # Default to project-style session key
         session_key = f"mc:{self._agent.org_slug}:project:{channel_id}"
         await self._state.create_session_mapping(
-            session_key, self._agent.name, self._agent.org_slug,
-            channel_id, "project",
+            session_key,
+            self._agent.name,
+            self._agent.org_slug,
+            channel_id,
+            "project",
         )
         log.info("router.session_created", channel=channel_id[:8], session=session_key)
         return session_key

@@ -1,6 +1,6 @@
 """User model."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 import sqlalchemy as sa

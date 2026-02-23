@@ -5,7 +5,6 @@ Script to create an initial human user with a password for local testing.
 import asyncio
 import argparse
 import sys
-from typing import Optional
 
 import uuid
 from passlib.context import CryptContext
@@ -15,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Add the project root to sys.path to allow importing from 'app'
 import os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app.models.user import User
@@ -39,18 +39,18 @@ async def create_user(email: str, password: str):
         # 1. Ensure Default Organization exists
         result = await session.execute(select(Organization).where(Organization.slug == "default"))
         org = result.scalar_one_or_none()
-        
+
         if not org:
             org = Organization(
                 id=uuid.uuid4(),
                 name="Default Organization",
                 slug="default",
                 status="active",
-                settings={}
+                settings={},
             )
             session.add(org)
             print("Created default organization.")
-        
+
         # 2. Check if user already exists
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
@@ -61,31 +61,31 @@ async def create_user(email: str, password: str):
                 id=uuid.uuid4(),
                 email=email,
                 type="human",
-                password_hash=get_password_hash(password)
+                password_hash=get_password_hash(password),
             )
             session.add(user)
             print(f"Created user: {email}")
         else:
             print(f"User {email} already exists.")
 
-        await session.flush() # Get IDs
+        await session.flush()  # Get IDs
 
         # 3. Ensure membership exists
         result = await session.execute(
             select(UserOrg).where(UserOrg.user_id == user.id, UserOrg.org_id == org.id)
         )
         membership = result.scalar_one_or_none()
-        
+
         if not membership:
             membership = UserOrg(
                 user_id=user.id,
                 org_id=org.id,
                 role="administrator",
-                display_name=email.split("@")[0]
+                display_name=email.split("@")[0],
             )
             session.add(membership)
             print(f"Added {email} as administrator to default organization.")
-        
+
         await session.commit()
         print("Done.")
 

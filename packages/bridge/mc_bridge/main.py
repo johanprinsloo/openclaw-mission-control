@@ -31,9 +31,7 @@ def configure_logging(level: str = "info", fmt: str = "json") -> None:
 
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(level.upper())
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level.upper())),
     )
 
 
@@ -41,7 +39,8 @@ def run() -> None:
     """CLI entry point for the bridge."""
     parser = argparse.ArgumentParser(description="OpenClaw ↔ Mission Control Comms Bridge")
     parser.add_argument(
-        "-c", "--config",
+        "-c",
+        "--config",
         default="comms-bridge.yaml",
         help="Path to configuration file (default: comms-bridge.yaml)",
     )

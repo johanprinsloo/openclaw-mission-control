@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Coroutine
 
 import httpx
@@ -30,6 +30,7 @@ RECONNECT_MULTIPLIER = 2.0
 @dataclass
 class SSEEvent:
     """A parsed SSE event."""
+
     event_type: str
     data: dict[str, Any]
     sequence_id: str | None = None

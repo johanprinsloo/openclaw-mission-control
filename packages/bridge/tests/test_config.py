@@ -1,8 +1,5 @@
 """Tests for configuration loading."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 import yaml
 
@@ -12,9 +9,7 @@ from mc_bridge.config import BridgeConfig, load_config
 def test_load_config_from_yaml(tmp_path):
     config_data = {
         "mission_control": {"url": "https://mc.example.com"},
-        "agents": [
-            {"name": "agent-1", "api_key_env": "KEY_1", "org_slug": "acme"}
-        ],
+        "agents": [{"name": "agent-1", "api_key_env": "KEY_1", "org_slug": "acme"}],
     }
     path = tmp_path / "config.yaml"
     path.write_text(yaml.dump(config_data))

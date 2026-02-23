@@ -12,7 +12,6 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 
-import pytest
 
 from openclaw_mc_shared.schemas.common import EvidenceType, TaskPriority, TaskStatus
 from openclaw_mc_shared.schemas.tasks import (
@@ -56,7 +55,11 @@ class TestEvidenceValidation:
     def test_extra_evidence_is_fine(self):
         """Submitting extra evidence beyond requirements is allowed."""
         required = [EvidenceType.PR_LINK.value]
-        submitted = {EvidenceType.PR_LINK.value, EvidenceType.TEST_RESULTS.value, EvidenceType.DOC_URL.value}
+        submitted = {
+            EvidenceType.PR_LINK.value,
+            EvidenceType.TEST_RESULTS.value,
+            EvidenceType.DOC_URL.value,
+        }
         missing = set(required) - submitted
         assert len(missing) == 0
 

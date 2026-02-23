@@ -44,9 +44,7 @@ async def list_users(
 ):
     """List all members of the org."""
     items = await user_service.list_org_users(auth.org_id, session)
-    return UserListResponse(
-        data=[UserResponse(**item) for item in items]
-    )
+    return UserListResponse(data=[UserResponse(**item) for item in items])
 
 
 @router.post("", response_model=UserAddResponse, status_code=201, tags=["Users"])
@@ -114,9 +112,7 @@ async def rotate_api_key(
     session: AsyncSession = Depends(get_session),
 ):
     """Rotate an agent's API key (Admin only). Old key valid for 24h grace period."""
-    new_key, expires_at = await user_service.rotate_api_key(
-        auth.org_id, userId, session
-    )
+    new_key, expires_at = await user_service.rotate_api_key(auth.org_id, userId, session)
     return ApiKeyRotateResponse(api_key=new_key, previous_key_expires_at=expires_at)
 
 

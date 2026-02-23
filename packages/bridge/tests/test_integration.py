@@ -52,7 +52,9 @@ async def test_message_round_trip(bridge_config_dict):
             )
             assert r.status_code == 200
 
-            msg = await wait_for_message(client, mc_url, CHANNEL_ID, "Agent response to: Hello agent!")
+            msg = await wait_for_message(
+                client, mc_url, CHANNEL_ID, "Agent response to: Hello agent!"
+            )
             assert msg is not None, "Agent response not found in MC channel"
             assert msg["sender_id"] == "test_agent"
     finally:
@@ -100,6 +102,7 @@ async def test_session_persistence(bridge_config_dict):
             await wait_for_message(client, mc_url, CHANNEL_ID, "Agent response to: First message")
 
         from mc_bridge.state import BridgeState
+
         state = BridgeState(bridge_config_dict["state"]["db_path"])
         await state.open()
         sessions = await state.list_sessions("test-agent")

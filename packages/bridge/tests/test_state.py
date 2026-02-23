@@ -15,9 +15,7 @@ async def state(tmp_path):
 
 async def test_session_mapping_crud(state: BridgeState):
     # Create
-    await state.create_session_mapping(
-        "mc:acme:project:ch1", "agent-1", "acme", "ch1", "project"
-    )
+    await state.create_session_mapping("mc:acme:project:ch1", "agent-1", "acme", "ch1", "project")
 
     # Read
     key = await state.get_session_key("ch1", "agent-1")

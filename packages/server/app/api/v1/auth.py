@@ -9,7 +9,6 @@ Authentication endpoints.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
@@ -18,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.auth import (
-    AuthenticatedUser,
     create_jwt,
     decode_jwt,
     generate_csrf_token,
@@ -65,6 +63,7 @@ def _set_session_cookies(response: Response, token: str, csrf: str) -> None:
 # Email/Password Registration
 # ---------------------------------------------------------------------------
 
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -96,9 +95,7 @@ async def register(
 
     # Validate password strength (basic)
     if len(body.password) < 8:
-        raise HTTPException(
-            status_code=400, detail="Password must be at least 8 characters"
-        )
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     user = User(
         id=uuid.uuid4(),
@@ -110,9 +107,7 @@ async def register(
 
     # In single-tenant mode, auto-create a default org or add to existing
     if settings.deployment_mode == "single-tenant":
-        result = await session.execute(
-            select(Organization).where(Organization.slug == "default")
-        )
+        result = await session.execute(select(Organization).where(Organization.slug == "default"))
         org = result.scalar_one_or_none()
         if not org:
             org = Organization(
@@ -127,9 +122,7 @@ async def register(
         else:
             # Check if there are any admins
             result = await session.execute(
-                select(UserOrg).where(
-                    UserOrg.org_id == org.id, UserOrg.role == "administrator"
-                )
+                select(UserOrg).where(UserOrg.org_id == org.id, UserOrg.role == "administrator")
             )
             role = "administrator" if not result.scalars().first() else "contributor"
 
@@ -181,9 +174,7 @@ async def login(
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Get user's org memberships
-    result = await session.execute(
-        select(UserOrg).where(UserOrg.user_id == user.id)
-    )
+    result = await session.execute(select(UserOrg).where(UserOrg.user_id == user.id))
     user_orgs = result.scalars().all()
 
     if not user_orgs:
@@ -212,6 +203,7 @@ async def login(
 # ---------------------------------------------------------------------------
 # OIDC Login (Placeholder)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/login/oidc")
 async def oidc_login(provider: str):
@@ -267,6 +259,7 @@ async def oidc_callback(
 # ---------------------------------------------------------------------------
 # Session Management
 # ---------------------------------------------------------------------------
+
 
 @router.post("/refresh")
 async def refresh_session(

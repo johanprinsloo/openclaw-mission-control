@@ -27,9 +27,7 @@ log = structlog.get_logger()
 API_KEY_GRACE_PERIOD_HOURS = 24
 
 
-async def list_org_users(
-    org_id: uuid.UUID, session: AsyncSession
-) -> list[dict]:
+async def list_org_users(org_id: uuid.UUID, session: AsyncSession) -> list[dict]:
     """List all users in an org with their membership info."""
     result = await session.execute(
         select(User, UserOrg)
@@ -68,24 +66,18 @@ async def add_user(
     # Check for existing user
     user: Optional[User] = None
     if req.type == UserType.HUMAN and req.email:
-        result = await session.execute(
-            select(User).where(User.email == req.email)
-        )
+        result = await session.execute(select(User).where(User.email == req.email))
         user = result.scalar_one_or_none()
     elif req.type == UserType.AGENT and req.identifier:
         result = await session.execute(
-            select(User).where(
-                User.type == "agent", User.identifier == req.identifier
-            )
+            select(User).where(User.type == "agent", User.identifier == req.identifier)
         )
         user = result.scalar_one_or_none()
 
     if user:
         # Check if already a member
         result = await session.execute(
-            select(UserOrg).where(
-                UserOrg.user_id == user.id, UserOrg.org_id == org_id
-            )
+            select(UserOrg).where(UserOrg.user_id == user.id, UserOrg.org_id == org_id)
         )
         if result.scalar_one_or_none():
             raise HTTPException(status_code=409, detail="User is already a member of this org")
@@ -139,9 +131,7 @@ async def add_user(
     return user_info, plaintext_key
 
 
-async def get_user(
-    org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession
-) -> dict:
+async def get_user(org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession) -> dict:
     """Get a single user's info within the org."""
     result = await session.execute(
         select(User, UserOrg)
@@ -175,9 +165,7 @@ async def update_user(
 ) -> dict:
     """Update a user's role or display name."""
     result = await session.execute(
-        select(UserOrg).where(
-            UserOrg.org_id == org_id, UserOrg.user_id == user_id
-        )
+        select(UserOrg).where(UserOrg.org_id == org_id, UserOrg.user_id == user_id)
     )
     uo = result.scalar_one_or_none()
     if not uo:
@@ -218,14 +206,10 @@ async def update_user(
     }
 
 
-async def remove_user(
-    org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession
-) -> None:
+async def remove_user(org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession) -> None:
     """Remove a user from the org. Immediately revokes access."""
     result = await session.execute(
-        select(UserOrg).where(
-            UserOrg.org_id == org_id, UserOrg.user_id == user_id
-        )
+        select(UserOrg).where(UserOrg.org_id == org_id, UserOrg.user_id == user_id)
     )
     uo = result.scalar_one_or_none()
     if not uo:
@@ -269,9 +253,7 @@ async def rotate_api_key(
     return new_key, expires_at
 
 
-async def revoke_api_key(
-    org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession
-) -> None:
+async def revoke_api_key(org_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession) -> None:
     """Revoke an agent's API key immediately (no grace period)."""
     result = await session.execute(
         select(UserOrg, User)

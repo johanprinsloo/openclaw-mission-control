@@ -9,7 +9,6 @@ SQLite-backed, no Redis/Postgres required. Provides:
 
 import asyncio
 import json
-import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -226,4 +225,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8100)

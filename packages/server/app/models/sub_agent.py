@@ -1,13 +1,11 @@
 """Sub-agent model (RLS-scoped)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
 import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
-
-from .base import UUIDMixin
 
 
 class SubAgent(SQLModel, table=True):

@@ -1,6 +1,6 @@
 """Base mixins for SQLModel tables."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 import uuid

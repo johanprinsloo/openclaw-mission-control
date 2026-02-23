@@ -96,9 +96,7 @@ class ConnectionManager:
         if org_str not in self._connections:
             self._connections[org_str] = []
             # Start Redis listener for this org
-            self._redis_tasks[org_str] = asyncio.create_task(
-                self._listen_redis(org_str)
-            )
+            self._redis_tasks[org_str] = asyncio.create_task(self._listen_redis(org_str))
 
         self._connections[org_str].append(info)
 
@@ -247,9 +245,7 @@ class ConnectionManager:
                     data = json.loads(message["data"])
                     channel_id = data.get("channel_id")
                     if channel_id:
-                        await self.broadcast_to_channel(
-                            UUID(org_id_str), channel_id, data
-                        )
+                        await self.broadcast_to_channel(UUID(org_id_str), channel_id, data)
                     else:
                         await self.broadcast_to_org(UUID(org_id_str), data)
         except asyncio.CancelledError:
@@ -285,10 +281,7 @@ class ConnectionManager:
 
         # Check if user still has other connections before removing from registry
         org_str = str(org_id)
-        user_still_connected = any(
-            c.user_id == user_id
-            for c in self._connections.get(org_str, [])
-        )
+        user_still_connected = any(c.user_id == user_id for c in self._connections.get(org_str, []))
         if not user_still_connected:
             registry_key = f"{REDIS_WS_REGISTRY_PREFIX}{org_id}"
             await redis.srem(registry_key, str(user_id))

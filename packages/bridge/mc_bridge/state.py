@@ -94,9 +94,7 @@ class BridgeState:
 
     async def delete_session_mapping(self, session_key: str) -> None:
         assert self._db
-        await self._db.execute(
-            "DELETE FROM session_mappings WHERE session_key = ?", (session_key,)
-        )
+        await self._db.execute("DELETE FROM session_mappings WHERE session_key = ?", (session_key,))
         await self._db.commit()
 
     async def list_sessions(self, agent_id: str) -> list[dict]:

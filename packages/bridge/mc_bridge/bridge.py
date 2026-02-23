@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import signal
-import time
-from typing import Any
 
 import structlog
 
-from .config import AgentConfig, BridgeConfig
+from .config import BridgeConfig
 from .health import HealthServer
 from .metrics import MetricsCollector
 from .relay import MessageRelay
@@ -147,9 +145,7 @@ class CommsBridge:
             while not self._shutdown_event.is_set():
                 await self._update_health()
                 try:
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(), timeout=30.0
-                    )
+                    await asyncio.wait_for(self._shutdown_event.wait(), timeout=30.0)
                 except asyncio.TimeoutError:
                     pass
         finally:
@@ -159,20 +155,22 @@ class CommsBridge:
         agent_statuses = []
         for listener, agent_cfg in zip(self._listeners, self._config.agents):
             sessions = await self._state.list_sessions(agent_cfg.name)
-            agent_statuses.append({
-                "name": agent_cfg.name,
-                "org": agent_cfg.org_slug,
-                "sse_connected": listener.connected,
-                "last_event_at": listener.last_event_at,
-                "active_sessions": len(sessions),
-                "reconnect_count": listener.reconnect_count,
-            })
+            agent_statuses.append(
+                {
+                    "name": agent_cfg.name,
+                    "org": agent_cfg.org_slug,
+                    "sse_connected": listener.connected,
+                    "last_event_at": listener.last_event_at,
+                    "active_sessions": len(sessions),
+                    "reconnect_count": listener.reconnect_count,
+                }
+            )
 
         gw_ok = await self._relay.check_gateway_health()
         mc_ok = await self._relay.check_mc_health()
 
-        self._metrics.set_gauge("sse_connections_active", sum(
-            1 for l in self._listeners if l.connected
-        ))
+        self._metrics.set_gauge(
+            "sse_connections_active", sum(1 for listener in self._listeners if listener.connected)
+        )
 
         self._health.update_status(agent_statuses, gw_ok, mc_ok)

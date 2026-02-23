@@ -15,8 +15,10 @@ from .common import EvidenceType, TaskPriority, TaskStatus
 # Evidence
 # ---------------------------------------------------------------------------
 
+
 class EvidenceSubmission(BaseModel):
     """A single piece of evidence submitted during a task transition."""
+
     type: EvidenceType
     url: str
 
@@ -33,6 +35,7 @@ class EvidenceRead(BaseModel):
 # ---------------------------------------------------------------------------
 # Task CRUD
 # ---------------------------------------------------------------------------
+
 
 class TaskBase(BaseModel):
     title: str
@@ -80,8 +83,10 @@ class TaskRead(BaseModel):
 # Transition
 # ---------------------------------------------------------------------------
 
+
 class TaskTransition(BaseModel):
     """Request body for POST /tasks/{taskId}/transition."""
+
     to_status: TaskStatus
     evidence: List[EvidenceSubmission] = Field(default_factory=list)
 
@@ -90,8 +95,10 @@ class TaskTransition(BaseModel):
 # Dependencies
 # ---------------------------------------------------------------------------
 
+
 class DependencyAdd(BaseModel):
     """Request body for POST /tasks/{taskId}/dependencies."""
+
     blocked_by_id: UUID4
 
 

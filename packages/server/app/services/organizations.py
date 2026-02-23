@@ -38,9 +38,7 @@ def _deep_merge(base: dict, patch: dict) -> dict:
     return result
 
 
-async def list_user_orgs(
-    user_id: uuid.UUID, session: AsyncSession
-) -> list[dict]:
+async def list_user_orgs(user_id: uuid.UUID, session: AsyncSession) -> list[dict]:
     """List all orgs a user belongs to, with their role."""
     result = await session.execute(
         select(Organization, UserOrg.role)
@@ -69,9 +67,7 @@ async def create_org(
 ) -> Organization:
     """Create an org and make the creator an administrator."""
     # Check slug uniqueness
-    existing = await session.execute(
-        select(Organization).where(Organization.slug == req.slug)
-    )
+    existing = await session.execute(select(Organization).where(Organization.slug == req.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Org slug already taken")
 
@@ -150,9 +146,7 @@ async def update_org(
     return org
 
 
-async def begin_org_deletion(
-    org: Organization, session: AsyncSession
-) -> Organization:
+async def begin_org_deletion(org: Organization, session: AsyncSession) -> Organization:
     """Start the deletion grace period."""
     if org.status == OrgStatus.DELETED.value:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -178,14 +172,10 @@ async def begin_org_deletion(
     return org
 
 
-async def cancel_org_deletion(
-    org: Organization, session: AsyncSession
-) -> Organization:
+async def cancel_org_deletion(org: Organization, session: AsyncSession) -> Organization:
     """Cancel a pending deletion, returning org to active."""
     if org.status != OrgStatus.PENDING_DELETION.value:
-        raise HTTPException(
-            status_code=409, detail="Org is not pending deletion"
-        )
+        raise HTTPException(status_code=409, detail="Org is not pending deletion")
 
     org.status = OrgStatus.ACTIVE.value
     org.deletion_scheduled_at = None
@@ -197,13 +187,9 @@ async def cancel_org_deletion(
     return org
 
 
-async def finalize_org_deletion(
-    org_id: uuid.UUID, session: AsyncSession
-) -> None:
+async def finalize_org_deletion(org_id: uuid.UUID, session: AsyncSession) -> None:
     """Finalize deletion — called by ARQ background task after grace period."""
-    result = await session.execute(
-        select(Organization).where(Organization.id == org_id)
-    )
+    result = await session.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
         return
@@ -224,9 +210,7 @@ async def finalize_org_deletion(
     log.info("org.deleted", org_id=str(org_id), slug=org.slug)
 
 
-async def suspend_org(
-    org: Organization, session: AsyncSession
-) -> Organization:
+async def suspend_org(org: Organization, session: AsyncSession) -> Organization:
     """Suspend an org (admin action)."""
     current = OrgStatus(org.status)
     if OrgStatus.SUSPENDED not in ORG_TRANSITIONS.get(current, []):
@@ -242,9 +226,7 @@ async def suspend_org(
     return org
 
 
-async def reactivate_org(
-    org: Organization, session: AsyncSession
-) -> Organization:
+async def reactivate_org(org: Organization, session: AsyncSession) -> Organization:
     """Reactivate a suspended org."""
     current = OrgStatus(org.status)
     if OrgStatus.ACTIVE not in ORG_TRANSITIONS.get(current, []):

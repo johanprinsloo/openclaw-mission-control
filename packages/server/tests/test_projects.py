@@ -10,7 +10,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
 
 from openclaw_mc_shared.schemas.common import ProjectStage, PROJECT_STAGE_ORDER
 from openclaw_mc_shared.schemas.projects import validate_transition

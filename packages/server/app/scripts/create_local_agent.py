@@ -5,9 +5,7 @@ Script to create a local agent user for testing bridge communication.
 import asyncio
 import argparse
 import sys
-from typing import Optional
 
-import uuid
 import aiohttp
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -15,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 # Add the project root to sys.path to allow importing from 'app'
 import os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app.models.user import User
@@ -34,15 +33,17 @@ async def create_agent(identifier: str, display_name: str):
         # 1. Ensure Default Organization exists
         result = await session.execute(select(Organization).where(Organization.slug == "default"))
         org = result.scalar_one_or_none()
-        
+
         if not org:
             print("Error: 'default' organization not found. Please run create_local_admin first.")
             return
-        
+
         # 2. Check if agent already exists
-        result = await session.execute(select(User).where(User.type == "agent", User.identifier == identifier))
+        result = await session.execute(
+            select(User).where(User.type == "agent", User.identifier == identifier)
+        )
         user = result.scalar_one_or_none()
-        
+
         if user:
             print(f"Agent '{identifier}' already exists.")
         else:
@@ -63,7 +64,7 @@ async def create_agent(identifier: str, display_name: str):
             select(UserOrg).where(UserOrg.user_id == user.id, UserOrg.org_id == org.id)
         )
         membership = result.scalar_one_or_none()
-        
+
         if not membership:
             membership = UserOrg(
                 user_id=user.id,
@@ -81,7 +82,7 @@ async def create_agent(identifier: str, display_name: str):
             print(f"Updated API key for '{identifier}'.")
 
         await session.commit()
-        
+
         # 5. Ensure 'general' channel exists
         print("Ensuring 'general' channel exists...")
         try:
@@ -89,22 +90,26 @@ async def create_agent(identifier: str, display_name: str):
                 # Login as admin to get session cookie
                 async with http_session.post(
                     "http://localhost:8000/auth/login",
-                    json={"email": "johan@example.com", "password": "devpass"}
+                    json={"email": "johan@example.com", "password": "devpass"},
                 ) as login_resp:
                     if login_resp.status != 200:
-                        print(f"Warning: Failed to login to ensure general channel. Status: {login_resp.status}")
+                        print(
+                            f"Warning: Failed to login to ensure general channel. Status: {login_resp.status}"
+                        )
                     else:
                         cookies = http_session.cookie_jar
                         # Try to create channel
                         async with http_session.post(
                             "http://localhost:8000/api/v1/orgs/default/channels",
                             json={"name": "general", "type": "org_wide"},
-                            cookies=cookies
+                            cookies=cookies,
                         ) as create_resp:
                             if create_resp.status == 200 or create_resp.status == 409:
                                 print("'general' channel ensured.")
                             else:
-                                print(f"Warning: Failed to create 'general' channel. Status: {create_resp.status}")
+                                print(
+                                    f"Warning: Failed to create 'general' channel. Status: {create_resp.status}"
+                                )
         except Exception as e:
             print(f"Warning: Error ensuring 'general' channel: {e}")
 

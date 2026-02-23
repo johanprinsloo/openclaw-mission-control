@@ -75,8 +75,18 @@ def upgrade() -> None:
         sa.Column("slug", sa.Text(), nullable=False, unique=True),
         sa.Column("status", sa.Text(), nullable=False, server_default="active"),
         sa.Column("settings", postgresql.JSONB(), nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.Column("deletion_scheduled_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("idx_organizations_slug", "organizations", ["slug"], unique=True)
@@ -91,15 +101,27 @@ def upgrade() -> None:
         sa.Column("oidc_provider", sa.Text(), nullable=True),
         sa.Column("oidc_subject", sa.Text(), nullable=True),
         sa.Column("password_hash", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
     op.create_index("idx_users_email", "users", ["email"], unique=True)
 
     # users_orgs
     op.create_table(
         "users_orgs",
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), primary_key=True),
+        sa.Column(
+            "user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            primary_key=True,
+        ),
         sa.Column("role", sa.Text(), nullable=False),
         sa.Column("display_name", sa.Text(), nullable=False),
         sa.Column("api_key_hash", sa.Text(), nullable=True),
@@ -111,15 +133,32 @@ def upgrade() -> None:
     op.create_table(
         "projects",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
         sa.Column("name", sa.Text(), nullable=False),
         sa.Column("type", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("stage", sa.Text(), nullable=False, server_default="definition"),
-        sa.Column("owner_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column(
+            "owner_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True
+        ),
         sa.Column("links", postgresql.JSONB(), nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         # FTS generated column added via raw SQL below
     )
     op.create_index("idx_projects_org", "projects", ["org_id"])
@@ -129,15 +168,30 @@ def upgrade() -> None:
     op.create_table(
         "tasks",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
         sa.Column("title", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("type", sa.Text(), nullable=False),
         sa.Column("priority", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False, server_default="backlog"),
         sa.Column("required_evidence_types", postgresql.ARRAY(sa.Text()), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
         # FTS generated column added via raw SQL below
@@ -149,37 +203,87 @@ def upgrade() -> None:
     # task_project_assignments
     op.create_table(
         "task_project_assignments",
-        sa.Column("task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True
+        ),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
     )
     op.create_index("idx_task_projects_project", "task_project_assignments", ["project_id"])
 
     # project_user_assignments
     op.create_table(
         "project_user_assignments",
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
-        sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("projects.id"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "assigned_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
     op.create_index("idx_project_users_user", "project_user_assignments", ["user_id"])
 
     # task_user_assignments
     op.create_table(
         "task_user_assignments",
-        sa.Column("task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True
+        ),
+        sa.Column(
+            "user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
     )
     op.create_index("idx_task_users_user", "task_user_assignments", ["user_id"])
 
     # task_dependencies
     op.create_table(
         "task_dependencies",
-        sa.Column("task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True),
-        sa.Column("blocked_by_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), primary_key=True
+        ),
+        sa.Column(
+            "blocked_by_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("tasks.id"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
         sa.CheckConstraint("task_id != blocked_by_id", name="no_self_dependency"),
     )
 
@@ -187,23 +291,49 @@ def upgrade() -> None:
     op.create_table(
         "task_evidence",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), nullable=False),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), nullable=False
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
         sa.Column("type", sa.Text(), nullable=False),
         sa.Column("url", sa.Text(), nullable=False),
-        sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("submitted_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column(
+            "submitted_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "submitted_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False
+        ),
     )
 
     # channels
     op.create_table(
         "channels",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=True),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=True
+        ),
         sa.Column("name", sa.Text(), nullable=False),
         sa.Column("type", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
     op.create_index("idx_channels_org", "channels", ["org_id"])
     op.create_index("idx_channels_project", "channels", ["org_id", "project_id"])
@@ -212,26 +342,52 @@ def upgrade() -> None:
     op.create_table(
         "sub_agents",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
-        sa.Column("task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), nullable=False),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "task_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("tasks.id"), nullable=False
+        ),
         sa.Column("model", sa.Text(), nullable=False),
         sa.Column("instructions", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False, server_default="active"),
-        sa.Column("created_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column(
+            "created_by", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False
+        ),
         sa.Column("api_key_hash", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("terminated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("termination_reason", sa.Text(), nullable=True),
     )
     op.create_index("idx_sub_agents_org", "sub_agents", ["org_id"])
-    op.create_index("idx_sub_agents_status", "sub_agents", ["org_id", "status"], postgresql_where=sa.text("status = 'active'"))
+    op.create_index(
+        "idx_sub_agents_status",
+        "sub_agents",
+        ["org_id", "status"],
+        postgresql_where=sa.text("status = 'active'"),
+    )
 
     # subscriptions
     op.create_table(
         "subscriptions",
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True),
-        sa.Column("org_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), primary_key=True),
+        sa.Column(
+            "user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), primary_key=True
+        ),
+        sa.Column(
+            "org_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            primary_key=True,
+        ),
         sa.Column("topic_type", sa.Text(), nullable=False, primary_key=True),
         sa.Column("topic_id", postgresql.UUID(as_uuid=True), nullable=False, primary_key=True),
     )
@@ -248,8 +404,18 @@ def upgrade() -> None:
         sa.Column("channel_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("sender_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("mentions", postgresql.ARRAY(postgresql.UUID(as_uuid=True)), server_default="{}", nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "mentions",
+            postgresql.ARRAY(postgresql.UUID(as_uuid=True)),
+            server_default="{}",
+            nullable=True,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.PrimaryKeyConstraint("id", "created_at"),
         postgresql_partition_by="RANGE (created_at)",
     )
@@ -265,14 +431,18 @@ def upgrade() -> None:
         sa.Column("actor_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("actor_type", sa.Text(), nullable=False),
         sa.Column("payload", postgresql.JSONB(), nullable=False),
-        sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        ),
         sa.PrimaryKeyConstraint("id", "timestamp"),
         postgresql_partition_by="RANGE (timestamp)",
     )
 
     # Create sequence for events.sequence_id
     op.execute("CREATE SEQUENCE IF NOT EXISTS events_sequence_id_seq")
-    op.execute("ALTER TABLE events ALTER COLUMN sequence_id SET DEFAULT nextval('events_sequence_id_seq')")
+    op.execute(
+        "ALTER TABLE events ALTER COLUMN sequence_id SET DEFAULT nextval('events_sequence_id_seq')"
+    )
 
     # BRIN indexes for partitioned tables
     op.execute("CREATE INDEX idx_messages_time ON messages USING BRIN (created_at)")

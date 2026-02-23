@@ -12,10 +12,9 @@ POST   /api/v1/orgs/{orgSlug}/reactivate — Cancel deletion / reactivate
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import (
@@ -64,6 +63,7 @@ async def create_org(
     user_id = await _get_user_id_from_request(request, session)
     # Get user for display name
     from sqlmodel import select
+
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -174,9 +174,8 @@ async def reactivate_org(
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _get_user_id_from_request(
-    request: Request, session: AsyncSession
-) -> uuid.UUID:
+
+async def _get_user_id_from_request(request: Request, session: AsyncSession) -> uuid.UUID:
     """Extract user ID from JWT cookie or API key header (non-org-scoped)."""
     # Try JWT cookie
     token = request.cookies.get("mc_session")

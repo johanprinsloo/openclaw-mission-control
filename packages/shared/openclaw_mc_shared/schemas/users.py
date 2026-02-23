@@ -20,8 +20,10 @@ class UserType(str, Enum):
 # Request schemas
 # ---------------------------------------------------------------------------
 
+
 class UserAddRequest(BaseModel):
     """Add a user to the org (invite)."""
+
     type: UserType
     email: Optional[EmailStr] = None
     identifier: Optional[str] = None
@@ -31,6 +33,7 @@ class UserAddRequest(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     """Update a user's role or display name."""
+
     role: Optional[Role] = None
     display_name: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
@@ -39,8 +42,10 @@ class UserUpdateRequest(BaseModel):
 # Response schemas
 # ---------------------------------------------------------------------------
 
+
 class UserResponse(BaseModel):
     """Single user response."""
+
     id: UUID4
     type: UserType
     email: Optional[str] = None
@@ -54,16 +59,19 @@ class UserResponse(BaseModel):
 
 class UserAddResponse(BaseModel):
     """Response when adding a user. For agents, includes the one-time API key."""
+
     user: UserResponse
     api_key: Optional[str] = None  # Only present for agent users, shown ONCE
 
 
 class UserListResponse(BaseModel):
     """List of users in an org."""
+
     data: List[UserResponse]
 
 
 class ApiKeyRotateResponse(BaseModel):
     """Response after rotating an agent's API key."""
+
     api_key: str  # New plaintext key, shown ONCE
     previous_key_expires_at: datetime  # When the old key stops working

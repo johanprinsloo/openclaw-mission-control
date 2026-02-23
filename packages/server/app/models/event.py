@@ -1,6 +1,6 @@
 """Event model (partitioned by month on timestamp, RLS-scoped, immutable)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
@@ -11,15 +11,13 @@ from sqlmodel import Field, SQLModel
 
 class Event(SQLModel, table=True):
     __tablename__ = "events"
-    __table_args__ = (
-        {"postgresql_partition_by": "RANGE (timestamp)"},
-    )
+    __table_args__ = ({"postgresql_partition_by": "RANGE (timestamp)"},)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     sequence_id: Optional[int] = Field(
-        default=None, 
+        default=None,
         index=True,
-        sa_column_kwargs={"server_default": sa.text("nextval('events_sequence_id_seq')")}
+        sa_column_kwargs={"server_default": sa.text("nextval('events_sequence_id_seq')")},
     )  # auto-populated by DB sequence
     org_id: uuid.UUID = Field(foreign_key="organizations.id", nullable=False, index=True)
     type: str = Field(nullable=False)  # e.g., task.transitioned, project.created

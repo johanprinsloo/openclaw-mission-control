@@ -1,11 +1,9 @@
 """Task evidence model (RLS-scoped)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 from sqlmodel import Field, SQLModel
-
-from .base import UUIDMixin
 
 
 class TaskEvidence(SQLModel, table=True):

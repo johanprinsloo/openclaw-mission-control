@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import aiosqlite
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -91,7 +91,12 @@ def create_mc_app(db_path: str = ":memory:") -> FastAPI:
         )
         seq_id = cursor.lastrowid
         await mc.db.commit()
-        event_data = {"sequence_id": seq_id, "type": event_type, "payload": payload, "created_at": now}
+        event_data = {
+            "sequence_id": seq_id,
+            "type": event_type,
+            "payload": payload,
+            "created_at": now,
+        }
         for q in mc.subscribers:
             await q.put(event_data)
         return seq_id
@@ -127,7 +132,11 @@ def create_mc_app(db_path: str = ":memory:") -> FastAPI:
 
         if body.content.strip().startswith("/"):
             parts = body.content.strip().split(maxsplit=1)
-            cmd_payload = {**payload, "command": parts[0], "args": parts[1] if len(parts) > 1 else ""}
+            cmd_payload = {
+                **payload,
+                "command": parts[0],
+                "args": parts[1] if len(parts) > 1 else "",
+            }
             await emit_event("test-org", "command.invoked", cmd_payload)
         else:
             await emit_event("test-org", "message.created", payload)
@@ -164,12 +173,14 @@ def create_mc_app(db_path: str = ":memory:") -> FastAPI:
                         yield {
                             "event": evt["type"],
                             "id": str(evt["sequence_id"]),
-                            "data": json.dumps({
-                                "sequence_id": evt["sequence_id"],
-                                "type": evt["type"],
-                                "payload": json.loads(evt["payload"]),
-                                "created_at": evt["created_at"],
-                            }),
+                            "data": json.dumps(
+                                {
+                                    "sequence_id": evt["sequence_id"],
+                                    "type": evt["type"],
+                                    "payload": json.loads(evt["payload"]),
+                                    "created_at": evt["created_at"],
+                                }
+                            ),
                         }
                 while True:
                     if await request.is_disconnected():
@@ -192,6 +203,7 @@ def create_mc_app(db_path: str = ":memory:") -> FastAPI:
 
 
 # ── Mock Gateway ──
+
 
 def create_gateway_app() -> FastAPI:
     app = FastAPI(title="Mock Gateway")
@@ -217,7 +229,9 @@ def create_gateway_app() -> FastAPI:
     @app.post("/v1/command")
     async def command(req: CmdReq):
         if req.command == "/status":
-            output = f"🟢 Status for session {req.session_key}:\n  Active tasks: 3\n  Pending reviews: 1"
+            output = (
+                f"🟢 Status for session {req.session_key}:\n  Active tasks: 3\n  Pending reviews: 1"
+            )
         else:
             output = f"Unknown command: {req.command}"
         return {"session_key": req.session_key, "output": output}

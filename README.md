@@ -102,6 +102,30 @@ openclaw-mission-control/
    - Frontend: http://localhost:5173
    - API Docs: http://localhost:8000/docs
 
+## Running CI locally
+
+To debug the same steps that run in GitHub Actions:
+
+1. **Same commands as CI (no Docker)**  
+   From the repo root, install dev deps and run lint + server tests:
+   ```bash
+   uv sync --all-packages --group dev
+   uv run ruff check . && uv run ruff format --check . && uv run mypy packages/
+   # With Postgres + Redis running (e.g. ./scripts/dev-up.sh):
+   MC_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/mission_control_test \
+   MC_REDIS_URL=redis://localhost:6379/0 MC_SECRET_KEY=test-secret-key \
+   uv run pytest packages/server -v
+   ```
+   Or use the script: `./scripts/ci-local.sh`
+
+2. **Full workflow in Docker (act)**  
+   Install [act](https://github.com/nektos/act) and Docker, then from the repo root:
+   ```bash
+   act pull_request --list          # list jobs
+   act pull_request -j lint-python  # run one job
+   act pull_request                 # run all jobs (needs more resources)
+   ```
+
 ## Documentation
 
 Design documents and specifications are in the `docs/` directory:

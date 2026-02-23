@@ -15,8 +15,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Optional
+from datetime import datetime
+from typing import Any, AsyncGenerator
 from uuid import UUID
 
 from fastapi import Request
@@ -153,11 +153,19 @@ def _matches_subscriptions(
         topic_type = sub.get("topic_type")
         topic_id = sub.get("topic_id")
 
-        if topic_type == "project" and payload_project_id and str(payload_project_id) == str(topic_id):
+        if (
+            topic_type == "project"
+            and payload_project_id
+            and str(payload_project_id) == str(topic_id)
+        ):
             return True
         if topic_type == "task" and payload_task_id and str(payload_task_id) == str(topic_id):
             return True
-        if topic_type == "channel" and payload_channel_id and str(payload_channel_id) == str(topic_id):
+        if (
+            topic_type == "channel"
+            and payload_channel_id
+            and str(payload_channel_id) == str(topic_id)
+        ):
             return True
 
         # Match by event type prefix (e.g., subscribe to "task.*" events)
@@ -167,9 +175,7 @@ def _matches_subscriptions(
     return False
 
 
-async def _replay_from_buffer(
-    org_id: UUID, last_event_id: int
-) -> tuple[list[dict], bool]:
+async def _replay_from_buffer(org_id: UUID, last_event_id: int) -> tuple[list[dict], bool]:
     """
     Try to replay events from Redis buffer.
 
@@ -196,9 +202,7 @@ async def _replay_from_buffer(
         return [], True
 
 
-async def _replay_from_db(
-    org_id: UUID, last_event_id: int
-) -> tuple[list[dict], bool]:
+async def _replay_from_db(org_id: UUID, last_event_id: int) -> tuple[list[dict], bool]:
     """
     Replay events from database.
 
@@ -208,10 +212,7 @@ async def _replay_from_db(
     events = []
     async for session in get_session():
         # Check if the requested sequence_id still exists
-        stmt = (
-            select(func.min(Event.sequence_id))
-            .where(Event.org_id == org_id)
-        )
+        stmt = select(func.min(Event.sequence_id)).where(Event.org_id == org_id)
         result = await session.execute(stmt)
         min_seq = result.scalar()
 
@@ -229,16 +230,18 @@ async def _replay_from_db(
         db_events = result.scalars().all()
 
         for event in db_events:
-            events.append({
-                "id": str(event.id),
-                "sequence_id": event.sequence_id,
-                "org_id": str(event.org_id),
-                "type": event.type,
-                "actor_id": str(event.actor_id) if event.actor_id else None,
-                "actor_type": event.actor_type,
-                "payload": event.payload,
-                "timestamp": event.timestamp.isoformat(),
-            })
+            events.append(
+                {
+                    "id": str(event.id),
+                    "sequence_id": event.sequence_id,
+                    "org_id": str(event.org_id),
+                    "type": event.type,
+                    "actor_id": str(event.actor_id) if event.actor_id else None,
+                    "actor_type": event.actor_type,
+                    "payload": event.payload,
+                    "timestamp": event.timestamp.isoformat(),
+                }
+            )
         break
 
     return events, False
@@ -285,10 +288,12 @@ async def event_generator(
                 if should_reset:
                     yield {
                         "event": "events.reset",
-                        "data": json.dumps({
-                            "reason": "cursor_expired",
-                            "message": "Requested sequence ID is older than retention. Full refresh required.",
-                        }),
+                        "data": json.dumps(
+                            {
+                                "reason": "cursor_expired",
+                                "message": "Requested sequence ID is older than retention. Full refresh required.",
+                            }
+                        ),
                     }
                     # Continue streaming live events from here
 

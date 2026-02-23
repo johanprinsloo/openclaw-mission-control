@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from typing import Any
 
 import httpx
 import structlog
@@ -160,20 +159,20 @@ class MessageRelay:
     ) -> bool:
         """Post a message to a Mission Control channel with retries."""
         try:
-            await self._post_to_mc(
-                channel_id, content, sender_id, sender_name, api_key, org_slug
-            )
+            await self._post_to_mc(channel_id, content, sender_id, sender_name, api_key, org_slug)
             return True
         except Exception:
             # Buffer for later flush
-            self._outbound_buffer.append({
-                "channel_id": channel_id,
-                "content": content,
-                "sender_id": sender_id,
-                "sender_name": sender_name,
-                "api_key": api_key,
-                "org_slug": org_slug,
-            })
+            self._outbound_buffer.append(
+                {
+                    "channel_id": channel_id,
+                    "content": content,
+                    "sender_id": sender_id,
+                    "sender_name": sender_name,
+                    "api_key": api_key,
+                    "org_slug": org_slug,
+                }
+            )
             return False
 
     async def _post_to_mc(
@@ -200,7 +199,9 @@ class MessageRelay:
                 resp = await self._client.post(url, json=body, headers=headers)
 
                 if resp.status_code == 429:
-                    retry_after = float(resp.headers.get("Retry-After", RETRY_BASE_SECONDS * (attempt + 1)))
+                    retry_after = float(
+                        resp.headers.get("Retry-After", RETRY_BASE_SECONDS * (attempt + 1))
+                    )
                     log.warning("relay.rate_limited", retry_after=retry_after)
                     await asyncio.sleep(retry_after)
                     continue
@@ -224,7 +225,7 @@ class MessageRelay:
             except (httpx.ConnectError, httpx.ReadError) as exc:
                 last_exc = exc
 
-            backoff = RETRY_BASE_SECONDS * (2 ** attempt)
+            backoff = RETRY_BASE_SECONDS * (2**attempt)
             log.warning(
                 "relay.mc_retry",
                 attempt=attempt + 1,

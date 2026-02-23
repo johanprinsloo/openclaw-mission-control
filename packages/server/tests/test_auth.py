@@ -15,13 +15,12 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.responses import JSONResponse
 
 from app.core.auth import (
     AuthenticatedUser,
@@ -44,6 +43,7 @@ from app.core.middleware import CSRFMiddleware, SecurityHeadersMiddleware, SECUR
 # ---------------------------------------------------------------------------
 # Unit Tests: Password hashing
 # ---------------------------------------------------------------------------
+
 
 class TestPasswordHashing:
     def test_hash_and_verify(self):
@@ -68,6 +68,7 @@ class TestPasswordHashing:
 # ---------------------------------------------------------------------------
 # Unit Tests: API Key
 # ---------------------------------------------------------------------------
+
 
 class TestAPIKey:
     def test_generate_persistent_key(self):
@@ -110,6 +111,7 @@ class TestAPIKey:
 # Unit Tests: JWT
 # ---------------------------------------------------------------------------
 
+
 class TestJWT:
     def test_create_and_decode(self):
         uid = uuid.uuid4()
@@ -136,16 +138,16 @@ class TestJWT:
             expires_delta=timedelta(seconds=-1),
         )
         import jwt as pyjwt
+
         with pytest.raises(pyjwt.ExpiredSignatureError):
             decode_jwt(token)
 
     def test_tampered_jwt_raises(self):
         uid = uuid.uuid4()
-        token, _ = create_jwt(
-            user_id=uid, org_ids=[], active_org="org1", role="contributor"
-        )
+        token, _ = create_jwt(user_id=uid, org_ids=[], active_org="org1", role="contributor")
         tampered = token[:-5] + "XXXXX"
         import jwt as pyjwt
+
         with pytest.raises(pyjwt.InvalidSignatureError):
             decode_jwt(tampered)
 
@@ -153,6 +155,7 @@ class TestJWT:
 # ---------------------------------------------------------------------------
 # Unit Tests: CSRF Token
 # ---------------------------------------------------------------------------
+
 
 class TestCSRFToken:
     def test_generates_unique_tokens(self):
@@ -165,6 +168,7 @@ class TestCSRFToken:
 # ---------------------------------------------------------------------------
 # Integration Tests: Middleware
 # ---------------------------------------------------------------------------
+
 
 class TestSecurityHeadersMiddleware:
     def test_headers_present(self):
@@ -241,6 +245,7 @@ class TestCSRFMiddleware:
 # Integration Tests: Auth Endpoints
 # ---------------------------------------------------------------------------
 
+
 class TestAuthEndpoints:
     """Tests for /auth/* endpoints using the real app with mocked DB."""
 
@@ -249,6 +254,7 @@ class TestAuthEndpoints:
         """Create a test app with auth routes (isolated, no other v1 routers)."""
         import importlib
         import sys
+
         # Import auth module directly to avoid triggering v1/__init__ which needs shared pkg
         spec = importlib.util.spec_from_file_location(
             "app.api.v1.auth",
@@ -273,7 +279,7 @@ class TestAuthEndpoints:
 
     @pytest.mark.skipif(
         True,  # Skip when no DB available
-        reason="Requires running PostgreSQL + greenlet for async session"
+        reason="Requires running PostgreSQL + greenlet for async session",
     )
     def test_register_short_password(self, app):
         """Password < 8 chars should fail."""
@@ -309,6 +315,7 @@ class TestAuthEndpoints:
 # Unit Tests: Role-based auth matrix
 # ---------------------------------------------------------------------------
 
+
 class TestAuthorizationMatrix:
     """
     Verify that role dependencies enforce correct access levels.
@@ -318,6 +325,7 @@ class TestAuthorizationMatrix:
 
     def _mock_auth(self, role: str) -> AuthenticatedUser:
         from unittest.mock import MagicMock
+
         user = MagicMock()
         user.id = uuid.uuid4()
         org = MagicMock()
@@ -372,6 +380,7 @@ class TestAuthorizationMatrix:
 # Unit Tests: JWT Revocation (mocked Redis)
 # ---------------------------------------------------------------------------
 
+
 class TestJWTRevocation:
     @pytest.mark.asyncio
     async def test_revoke_and_check(self):
@@ -395,5 +404,6 @@ class TestJWTRevocation:
 
         with patch("app.core.auth.get_redis", return_value=mock_redis):
             from app.core.auth import is_jwt_revoked
+
             result = await is_jwt_revoked("non-existent-jti")
             assert result is False

@@ -12,11 +12,10 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from datetime import datetime
+from typing import Sequence
 
 from fastapi import HTTPException
-from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -39,9 +38,7 @@ from openclaw_mc_shared.schemas.tasks import (
 # ---------------------------------------------------------------------------
 
 
-async def get_task_or_404(
-    session: AsyncSession, task_id: uuid.UUID, org_id: uuid.UUID
-) -> Task:
+async def get_task_or_404(session: AsyncSession, task_id: uuid.UUID, org_id: uuid.UUID) -> Task:
     task = await session.get(Task, task_id)
     if not task or task.org_id != org_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -50,35 +47,27 @@ async def get_task_or_404(
 
 async def _get_project_ids(session: AsyncSession, task_id: uuid.UUID) -> list[uuid.UUID]:
     result = await session.execute(
-        select(TaskProjectAssignment.project_id).where(
-            TaskProjectAssignment.task_id == task_id
-        )
+        select(TaskProjectAssignment.project_id).where(TaskProjectAssignment.task_id == task_id)
     )
     return [row[0] for row in result.all()]
 
 
 async def _get_assignee_ids(session: AsyncSession, task_id: uuid.UUID) -> list[uuid.UUID]:
     result = await session.execute(
-        select(TaskUserAssignment.user_id).where(
-            TaskUserAssignment.task_id == task_id
-        )
+        select(TaskUserAssignment.user_id).where(TaskUserAssignment.task_id == task_id)
     )
     return [row[0] for row in result.all()]
 
 
 async def _get_dependency_ids(session: AsyncSession, task_id: uuid.UUID) -> list[uuid.UUID]:
     result = await session.execute(
-        select(TaskDependency.blocked_by_id).where(
-            TaskDependency.task_id == task_id
-        )
+        select(TaskDependency.blocked_by_id).where(TaskDependency.task_id == task_id)
     )
     return [row[0] for row in result.all()]
 
 
 async def _get_evidence(session: AsyncSession, task_id: uuid.UUID) -> list[EvidenceRead]:
-    result = await session.execute(
-        select(TaskEvidence).where(TaskEvidence.task_id == task_id)
-    )
+    result = await session.execute(select(TaskEvidence).where(TaskEvidence.task_id == task_id))
     rows = result.scalars().all()
     return [
         EvidenceRead(
@@ -193,7 +182,9 @@ async def update_task(
 
     # Handle evidence types (convert enums to strings)
     if "required_evidence_types" in data and data["required_evidence_types"] is not None:
-        data["required_evidence_types"] = [e.value if hasattr(e, "value") else e for e in data["required_evidence_types"]]
+        data["required_evidence_types"] = [
+            e.value if hasattr(e, "value") else e for e in data["required_evidence_types"]
+        ]
 
     for key, value in data.items():
         if hasattr(task, key):
@@ -239,9 +230,7 @@ async def transition_task(
     if to_status == TaskStatus.COMPLETE:
         dep_ids = await _get_dependency_ids(session, task.id)
         if dep_ids:
-            result = await session.execute(
-                select(Task).where(Task.id.in_(dep_ids))
-            )
+            result = await session.execute(select(Task).where(Task.id.in_(dep_ids)))
             blockers = [t for t in result.scalars().all() if t.status != TaskStatus.COMPLETE.value]
             if blockers:
                 names = ", ".join(b.title for b in blockers)
@@ -255,7 +244,9 @@ async def transition_task(
         required = set(task.required_evidence_types)
         # Include already-submitted evidence
         existing_evidence = await _get_evidence(session, task.id)
-        submitted = set(e.type.value if hasattr(e.type, "value") else e.type for e in existing_evidence)
+        submitted = set(
+            e.type.value if hasattr(e.type, "value") else e.type for e in existing_evidence
+        )
         # Add newly submitted evidence types
         for ev in evidence:
             submitted.add(ev.type.value)
@@ -302,9 +293,7 @@ async def _has_path(
 ) -> bool:
     """BFS to detect if there's a path from from_id to to_id in the dependency graph."""
     # Build adjacency: task_id -> [blocked_by_id]
-    result = await session.execute(
-        select(TaskDependency).where(TaskDependency.org_id == org_id)
-    )
+    result = await session.execute(select(TaskDependency).where(TaskDependency.org_id == org_id))
     adj: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
     for dep in result.scalars().all():
         adj[dep.task_id].append(dep.blocked_by_id)
@@ -333,8 +322,8 @@ async def add_dependency(
         raise HTTPException(status_code=409, detail="A task cannot depend on itself")
 
     # Check both tasks exist in org
-    task = await get_task_or_404(session, task_id, org_id)
-    blocker = await get_task_or_404(session, blocked_by_id, org_id)
+    await get_task_or_404(session, task_id, org_id)
+    await get_task_or_404(session, blocked_by_id, org_id)
 
     # Check duplicate
     existing = await session.execute(

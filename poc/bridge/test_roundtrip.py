@@ -9,9 +9,7 @@ Starts MC server, Mock Gateway, and Bridge, then validates:
 """
 
 import asyncio
-import json
 import os
-import signal
 import sqlite3
 import subprocess
 import sys
@@ -54,7 +52,9 @@ async def wait_healthy(url: str, label: str, timeout: float = 10.0):
     raise TimeoutError(f"{label} did not become healthy within {timeout}s")
 
 
-async def wait_for_message(client: httpx.AsyncClient, channel_id: str, containing: str, timeout: float = 5.0):
+async def wait_for_message(
+    client: httpx.AsyncClient, channel_id: str, containing: str, timeout: float = 5.0
+):
     """Poll messages until one containing the expected text appears."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -102,12 +102,18 @@ async def run_tests():
             print("\n[2] Test: Message Round-Trip")
             r = await client.post(
                 f"{MC_URL}/api/v1/channels/{ch_id}/messages",
-                json={"content": "Hello agent, please help!", "sender_id": "user_human", "sender_name": "Human User"},
+                json={
+                    "content": "Hello agent, please help!",
+                    "sender_id": "user_human",
+                    "sender_name": "Human User",
+                },
             )
             assert r.status_code == 200, f"Post failed: {r.status_code}"
             print("  → Message posted by human")
 
-            reply = await wait_for_message(client, ch_id, "Agent response to: Hello agent, please help!")
+            reply = await wait_for_message(
+                client, ch_id, "Agent response to: Hello agent, please help!"
+            )
             print(f"  ← Agent replied: {reply['content']}")
             assert reply["sender_id"] == "agent_builder_01"
             print("  ✓ Message round-trip PASSED")
@@ -127,7 +133,9 @@ async def run_tests():
 
             # --- Test 3: Session Mapping in SQLite ---
             print("\n[4] Test: Session Mapping Persistence")
-            conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), BRIDGE_DB))
+            conn = sqlite3.connect(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), BRIDGE_DB)
+            )
             rows = conn.execute("SELECT session_key, channel_id FROM session_mappings").fetchall()
             assert len(rows) >= 1, "No session mappings found"
             print(f"  Session mappings: {len(rows)}")
@@ -154,7 +162,11 @@ async def run_tests():
             # Post a message while bridge is down
             r = await client.post(
                 f"{MC_URL}/api/v1/channels/{ch_id}/messages",
-                json={"content": "Message while bridge is down", "sender_id": "user_human", "sender_name": "Human User"},
+                json={
+                    "content": "Message while bridge is down",
+                    "sender_id": "user_human",
+                    "sender_name": "Human User",
+                },
             )
             assert r.status_code == 200
             print("  → Message posted while bridge was offline")
@@ -173,7 +185,9 @@ async def run_tests():
             print("  ✓ Cursor resume PASSED")
 
             # Verify cursor advanced
-            conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), BRIDGE_DB))
+            conn = sqlite3.connect(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), BRIDGE_DB)
+            )
             new_seq = conn.execute(
                 "SELECT last_sequence_id FROM event_cursors WHERE agent_id = 'agent-builder-01'"
             ).fetchone()[0]

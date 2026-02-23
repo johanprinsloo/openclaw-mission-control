@@ -1,12 +1,10 @@
 """Channel model (RLS-scoped)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
 from sqlmodel import Field, SQLModel
-
-from .base import UUIDMixin
 
 
 class Channel(SQLModel, table=True):

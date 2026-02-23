@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -30,12 +30,10 @@ from app.models.assignments import ProjectUserAssignment, TaskProjectAssignment
 from app.models.channel import Channel
 from app.models.project import Project
 from app.models.task import Task
-from app.models.user import User
 from openclaw_mc_shared.schemas.common import ProjectStage
 from openclaw_mc_shared.schemas.projects import (
     ProjectCreate,
     ProjectMemberAdd,
-    ProjectMemberRead,
     ProjectRead,
     ProjectTransition,
     ProjectUpdate,
@@ -59,9 +57,7 @@ async def _get_project_or_404(
     return project
 
 
-async def _enrich_task_counts(
-    session: AsyncSession, projects: list[Project]
-) -> list[dict]:
+async def _enrich_task_counts(session: AsyncSession, projects: list[Project]) -> list[dict]:
     """Add task_count and task_complete_count to project dicts."""
     if not projects:
         return []

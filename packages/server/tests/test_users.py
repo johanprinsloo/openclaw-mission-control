@@ -27,6 +27,7 @@ from app.core.auth import (
 # Unit tests for API key utilities
 # ---------------------------------------------------------------------------
 
+
 class TestApiKeyUtilities:
     """Test API key generation, hashing, and parsing."""
 
@@ -76,11 +77,13 @@ class TestApiKeyUtilities:
 # Schema validation tests
 # ---------------------------------------------------------------------------
 
+
 class TestUserSchemas:
     """Test Pydantic schema validation."""
 
     def test_user_add_request_human(self):
         from openclaw_mc_shared.schemas.users import UserAddRequest, UserType
+
         req = UserAddRequest(
             type=UserType.HUMAN,
             email="test@example.com",
@@ -90,6 +93,7 @@ class TestUserSchemas:
 
     def test_user_add_request_agent(self):
         from openclaw_mc_shared.schemas.users import UserAddRequest, UserType
+
         req = UserAddRequest(
             type=UserType.AGENT,
             identifier="deploy-bot",
@@ -100,6 +104,7 @@ class TestUserSchemas:
 
     def test_user_add_request_validation_empty_name(self):
         from openclaw_mc_shared.schemas.users import UserAddRequest, UserType
+
         with pytest.raises(Exception):
             UserAddRequest(
                 type=UserType.HUMAN,
@@ -109,17 +114,20 @@ class TestUserSchemas:
 
     def test_user_update_request_partial(self):
         from openclaw_mc_shared.schemas.users import UserUpdateRequest
+
         req = UserUpdateRequest(role="administrator")
         assert req.display_name is None
 
     def test_user_update_request_both_fields(self):
         from openclaw_mc_shared.schemas.users import UserUpdateRequest
+
         req = UserUpdateRequest(role="contributor", display_name="New Name")
         assert req.role.value == "contributor"
         assert req.display_name == "New Name"
 
     def test_user_response_serialization(self):
         from openclaw_mc_shared.schemas.users import UserResponse, UserType
+
         resp = UserResponse(
             id=uuid.uuid4(),
             type=UserType.HUMAN,
@@ -135,6 +143,7 @@ class TestUserSchemas:
 
     def test_user_add_response_with_key(self):
         from openclaw_mc_shared.schemas.users import UserAddResponse, UserResponse, UserType
+
         user = UserResponse(
             id=uuid.uuid4(),
             type=UserType.AGENT,
@@ -149,6 +158,7 @@ class TestUserSchemas:
 
     def test_api_key_rotate_response(self):
         from openclaw_mc_shared.schemas.users import ApiKeyRotateResponse
+
         resp = ApiKeyRotateResponse(
             api_key="mc_ak_live_new_key",
             previous_key_expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
@@ -159,6 +169,7 @@ class TestUserSchemas:
 # ---------------------------------------------------------------------------
 # API key rotation lifecycle tests
 # ---------------------------------------------------------------------------
+
 
 class TestApiKeyRotationLifecycle:
     """Test the full API key rotation lifecycle with grace period."""
@@ -210,24 +221,29 @@ class TestApiKeyRotationLifecycle:
 # Role-based access tests
 # ---------------------------------------------------------------------------
 
+
 class TestRoleAccess:
     """Test role validation logic."""
 
     def test_admin_role_value(self):
         from openclaw_mc_shared.schemas.common import Role
+
         assert Role.ADMIN.value == "administrator"
 
     def test_contributor_role_value(self):
         from openclaw_mc_shared.schemas.common import Role
+
         assert Role.CONTRIBUTOR.value == "contributor"
 
     def test_role_change_immediate(self):
         """Role changes should use the new role value directly."""
         from openclaw_mc_shared.schemas.users import UserUpdateRequest
+
         req = UserUpdateRequest(role="administrator")
         assert req.role.value == "administrator"
 
     def test_user_type_enum(self):
         from openclaw_mc_shared.schemas.users import UserType
+
         assert UserType.HUMAN.value == "human"
         assert UserType.AGENT.value == "agent"

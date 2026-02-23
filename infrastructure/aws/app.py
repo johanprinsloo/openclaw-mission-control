@@ -6,18 +6,18 @@ app = cdk.App()
 
 # Development stack
 MissionControlStack(
-    app, 
+    app,
     "MissionControlDev",
     env=cdk.Environment(
         account=app.node.try_get_context("account"),
-        region=app.node.try_get_context("region") or "us-west-2"
+        region=app.node.try_get_context("region") or "us-west-2",
     ),
-    environment="dev"
+    environment="dev",
 )
 
 # Production stack (uncomment when ready)
 # MissionControlStack(
-#     app, 
+#     app,
 #     "MissionControlProd",
 #     env=cdk.Environment(
 #         account=app.node.try_get_context("account"),

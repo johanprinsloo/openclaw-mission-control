@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -35,7 +35,6 @@ from app.services.tasks import (
 from openclaw_mc_shared.schemas.common import TaskPriority, TaskStatus
 from openclaw_mc_shared.schemas.tasks import (
     DependencyAdd,
-    DependencyRead,
     TaskCreate,
     TaskRead,
     TaskTransition,

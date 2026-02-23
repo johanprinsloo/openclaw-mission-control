@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
 
 class OrgStatus(str, Enum):
     ACTIVE = "active"
@@ -45,6 +46,7 @@ class NotificationChannel(str, Enum):
 # ---------------------------------------------------------------------------
 # Org Settings sub-models
 # ---------------------------------------------------------------------------
+
 
 class AuthenticationSettings(BaseModel):
     allowed_oidc_providers: list[OidcProvider] = Field(
@@ -97,9 +99,7 @@ class GoogleWorkspaceIntegration(BaseModel):
 
 class IntegrationsSettings(BaseModel):
     github: GitHubIntegration = Field(default_factory=GitHubIntegration)
-    google_workspace: GoogleWorkspaceIntegration = Field(
-        default_factory=GoogleWorkspaceIntegration
-    )
+    google_workspace: GoogleWorkspaceIntegration = Field(default_factory=GoogleWorkspaceIntegration)
 
 
 class AgentLimitsSettings(BaseModel):
@@ -140,9 +140,7 @@ class BackupSettings(BaseModel):
 class OrgSettings(BaseModel):
     """Complete org-level settings schema. All fields optional with defaults."""
 
-    authentication: AuthenticationSettings = Field(
-        default_factory=AuthenticationSettings
-    )
+    authentication: AuthenticationSettings = Field(default_factory=AuthenticationSettings)
     task_defaults: TaskDefaultsSettings = Field(default_factory=TaskDefaultsSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
     integrations: IntegrationsSettings = Field(default_factory=IntegrationsSettings)
@@ -173,6 +171,7 @@ ORG_TRANSITIONS: dict[OrgStatus, list[OrgStatus]] = {
 # Request schemas
 # ---------------------------------------------------------------------------
 
+
 class OrgCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Organization display name")
     slug: str = Field(
@@ -186,7 +185,7 @@ class OrgCreateRequest(BaseModel):
 
 class OrgUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    settings: Optional[dict] = Field(
+    settings: Optional[dict[str, Any]] = Field(
         None,
         description="Partial settings update (deep-merged via JSON Merge Patch)",
     )
@@ -195,6 +194,7 @@ class OrgUpdateRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------
+
 
 class OrgResponse(BaseModel):
     id: uuid.UUID

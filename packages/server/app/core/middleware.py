@@ -46,6 +46,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 # CSRF Protection (Double-Submit Cookie)
 # ---------------------------------------------------------------------------
 
+
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
     Double-submit cookie CSRF protection.

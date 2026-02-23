@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt
 import jwt
 import structlog
-from fastapi import Cookie, Depends, HTTPException, Request, WebSocket, Query
+from fastapi import Depends, HTTPException, Request, WebSocket, Query
 from fastapi.security import APIKeyHeader
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +42,7 @@ api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 # Password hashing
 # ---------------------------------------------------------------------------
 
+
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt with cost factor 12."""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -55,6 +56,7 @@ def verify_password(password: str, hashed: str) -> bool:
 # ---------------------------------------------------------------------------
 # API Key generation & hashing
 # ---------------------------------------------------------------------------
+
 
 def generate_api_key(user_id: uuid.UUID, *, temporary: bool = False) -> str:
     """Generate a prefixed API key with embedded user hint for O(1) lookup."""
@@ -81,13 +83,13 @@ def parse_api_key(key: str) -> tuple[str, str, str]:
     Raises ValueError if format is invalid.
     """
     if key.startswith("mc_ak_live_"):
-        remainder = key[len("mc_ak_live_"):]
+        remainder = key[len("mc_ak_live_") :]
     elif key.startswith("mc_ak_tmp_"):
-        remainder = key[len("mc_ak_tmp_"):]
+        remainder = key[len("mc_ak_tmp_") :]
     else:
         raise ValueError("Invalid API key prefix")
 
-    prefix = key[:key.index(remainder)]
+    prefix = key[: key.index(remainder)]
     parts = remainder.split("_", 1)
     if len(parts) != 2:
         raise ValueError("Invalid API key format")
@@ -97,6 +99,7 @@ def parse_api_key(key: str) -> tuple[str, str, str]:
 # ---------------------------------------------------------------------------
 # JWT
 # ---------------------------------------------------------------------------
+
 
 def create_jwt(
     user_id: uuid.UUID,
@@ -132,6 +135,7 @@ def decode_jwt(token: str) -> dict:
 # JWT Revocation (Redis)
 # ---------------------------------------------------------------------------
 
+
 async def revoke_jwt(jti: str, ttl_seconds: int = 3600) -> None:
     """Add a JWT ID to the revocation list in Redis."""
     redis = await get_redis()
@@ -148,6 +152,7 @@ async def is_jwt_revoked(jti: str) -> bool:
 # CSRF Token
 # ---------------------------------------------------------------------------
 
+
 def generate_csrf_token() -> str:
     """Generate a random CSRF token."""
     return secrets.token_urlsafe(32)
@@ -156,6 +161,7 @@ def generate_csrf_token() -> str:
 # ---------------------------------------------------------------------------
 # Authentication dependencies
 # ---------------------------------------------------------------------------
+
 
 class AuthenticatedUser:
     """Container for an authenticated user + their org context."""
@@ -171,9 +177,7 @@ class AuthenticatedUser:
 
 async def _resolve_org(org_slug: str, session: AsyncSession) -> Organization:
     """Resolve an org by slug, raise 404 if not found."""
-    result = await session.execute(
-        select(Organization).where(Organization.slug == org_slug)
-    )
+    result = await session.execute(select(Organization).where(Organization.slug == org_slug))
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -247,9 +251,7 @@ async def _authenticate_api_key(
                 user_org = result.scalar_one_or_none()
                 if not user_org:
                     raise HTTPException(status_code=401, detail="Sub-agent creator not in org")
-                result = await session.execute(
-                    select(User).where(User.id == sa.created_by)
-                )
+                result = await session.execute(select(User).where(User.id == sa.created_by))
                 user = result.scalar_one_or_none()
                 if not user:
                     raise HTTPException(status_code=401, detail="User not found")
@@ -258,25 +260,20 @@ async def _authenticate_api_key(
     else:
         # Persistent agent key — O(1) lookup via short_id hint
         # Find all users whose ID starts with this prefix
-        result = await session.execute(
-            select(UserOrg).where(UserOrg.org_id == org.id)
-        )
+        result = await session.execute(select(UserOrg).where(UserOrg.org_id == org.id))
         user_orgs = result.scalars().all()
         for uo in user_orgs:
             uid_str = str(uo.user_id).replace("-", "")[:12]
             if uid_str == short_id:
                 # Check current key
                 if uo.api_key_hash and verify_api_key(key, uo.api_key_hash):
-                    result = await session.execute(
-                        select(User).where(User.id == uo.user_id)
-                    )
+                    result = await session.execute(select(User).where(User.id == uo.user_id))
                     user = result.scalar_one_or_none()
                     if not user:
                         raise HTTPException(status_code=401, detail="User not found")
                     return AuthenticatedUser(user=user, org=org, user_org=uo)
                 # Check previous key (rotation grace period)
                 if uo.api_key_previous_hash and uo.api_key_previous_expires_at:
-                    from dateutil.parser import parse as parse_dt
                     try:
                         expires = datetime.fromisoformat(uo.api_key_previous_expires_at)
                     except (ValueError, TypeError):
@@ -284,14 +281,10 @@ async def _authenticate_api_key(
                     if expires > datetime.utcnow() and verify_api_key(
                         key, uo.api_key_previous_hash
                     ):
-                        result = await session.execute(
-                            select(User).where(User.id == uo.user_id)
-                        )
+                        result = await session.execute(select(User).where(User.id == uo.user_id))
                         user = result.scalar_one_or_none()
                         if not user:
-                            raise HTTPException(
-                                status_code=401, detail="User not found"
-                            )
+                            raise HTTPException(status_code=401, detail="User not found")
                         return AuthenticatedUser(user=user, org=org, user_org=uo)
 
         raise HTTPException(status_code=401, detail="Invalid API key")
@@ -307,9 +300,7 @@ async def get_authenticated_user(
     org = await _resolve_org(orgSlug, session)
 
     # Set RLS org context (must use text() with f-string, not parameters)
-    await session.execute(
-        text(f"SET app.current_org_id = '{str(org.id)}'")
-    )
+    await session.execute(text(f"SET app.current_org_id = '{str(org.id)}'"))
     # Try API key auth (agents)
     if authorization and authorization.startswith("Bearer "):
         key = authorization[7:].strip()
@@ -337,9 +328,7 @@ async def get_authenticated_user_ws(
     """WebSocket authentication dependency."""
     org = await _resolve_org(orgSlug, session)
     # Set RLS org context (must use text() with f-string, not parameters)
-    await session.execute(
-        text(f"SET app.current_org_id = '{str(org.id)}'")
-    )
+    await session.execute(text(f"SET app.current_org_id = '{str(org.id)}'"))
 
     # Try query param (agents)
     if token and token.startswith("mc_ak_"):
@@ -356,6 +345,7 @@ async def get_authenticated_user_ws(
 # ---------------------------------------------------------------------------
 # Authorization dependencies (role checks)
 # ---------------------------------------------------------------------------
+
 
 async def require_member(
     auth: AuthenticatedUser = Depends(get_authenticated_user),
@@ -386,6 +376,7 @@ async def require_admin(
 # ---------------------------------------------------------------------------
 # Backward-compatible aliases for existing routers
 # ---------------------------------------------------------------------------
+
 
 async def get_current_org(
     orgSlug: str, session: AsyncSession = Depends(get_session)

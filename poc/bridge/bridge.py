@@ -9,9 +9,7 @@ Maintains local SQLite state for:
 import asyncio
 import json
 import logging
-import signal
 import sqlite3
-import sys
 from datetime import datetime, timezone
 
 import httpx
@@ -120,7 +118,11 @@ async def handle_message(client: httpx.AsyncClient, conn: sqlite3.Connection, pa
     # Post back to MC
     resp = await client.post(
         f"{MC_BASE_URL}/api/v1/channels/{channel_id}/messages",
-        json={"content": agent_reply, "sender_id": BRIDGE_SENDER_ID, "sender_name": BRIDGE_SENDER_NAME},
+        json={
+            "content": agent_reply,
+            "sender_id": BRIDGE_SENDER_ID,
+            "sender_name": BRIDGE_SENDER_NAME,
+        },
     )
     resp.raise_for_status()
     log.info(f"REPLY [{channel_id[:8]}]: {agent_reply}")
@@ -176,27 +178,27 @@ async def sse_listen(conn: sqlite3.Connection):
                     log.info("SSE connected")
                     backoff = RECONNECT_BASE  # Reset on successful connect
 
-                    buffer = ""
                     current_event_type = None
-                    current_event_id = None
                     current_data_lines = []
 
                     async for line in response.aiter_lines():
                         line = line.rstrip("\n")
 
                         if line.startswith("event:"):
-                            current_event_type = line[len("event:"):].strip()
+                            current_event_type = line[len("event:") :].strip()
                         elif line.startswith("id:"):
-                            current_event_id = line[len("id:"):].strip()
+                            _ = line[len("id:") :].strip()  # id not used
                         elif line.startswith("data:"):
-                            current_data_lines.append(line[len("data:"):].strip())
+                            current_data_lines.append(line[len("data:") :].strip())
                         elif line == "":
                             # End of event
                             if current_data_lines:
                                 data_str = "\n".join(current_data_lines)
                                 try:
                                     event_data = json.loads(data_str)
-                                    event_type = current_event_type or event_data.get("type", "unknown")
+                                    event_type = current_event_type or event_data.get(
+                                        "type", "unknown"
+                                    )
                                     payload = event_data.get("payload", event_data)
                                     seq_id = event_data.get("sequence_id")
 
@@ -214,7 +216,6 @@ async def sse_listen(conn: sqlite3.Connection):
 
                             # Reset for next event
                             current_event_type = None
-                            current_event_id = None
                             current_data_lines = []
                         elif line.startswith(":"):
                             # Comment (keepalive)

@@ -12,11 +12,8 @@ Tests cover:
 
 from __future__ import annotations
 
-import re
 import uuid
-from unittest.mock import AsyncMock, patch
 
-import pytest
 
 from app.api.v1.channels import _parse_mentions_from_content, MENTION_PATTERN
 
@@ -136,10 +133,11 @@ class TestCursorPagination:
     def test_cursor_is_iso_timestamp(self):
         """Cursor should be a valid ISO timestamp."""
         from datetime import datetime, timezone
+
         cursor = datetime.now(timezone.utc).isoformat()
         # Should parse without error
         dt = datetime.fromisoformat(cursor)
-        assert dt.tzinfo is not None or cursor.endswith('+00:00') or 'Z' in cursor
+        assert dt.tzinfo is not None or cursor.endswith("+00:00") or "Z" in cursor
 
     def test_pagination_response_shape(self):
         """Pagination response should have next_cursor and has_more."""
@@ -177,8 +175,14 @@ class TestMessageEnrichment:
     def test_response_includes_sender_fields(self):
         """Message response should include sender_display_name and sender_type."""
         expected_fields = {
-            "id", "channel_id", "sender_id", "sender_display_name",
-            "sender_type", "content", "mentions", "created_at",
+            "id",
+            "channel_id",
+            "sender_id",
+            "sender_display_name",
+            "sender_type",
+            "content",
+            "mentions",
+            "created_at",
         }
         # This verifies the schema, not runtime behavior
         assert expected_fields == expected_fields  # Schema is enforced by Pydantic

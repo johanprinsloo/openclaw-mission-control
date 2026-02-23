@@ -1,6 +1,6 @@
 """Message model (partitioned by month on created_at, RLS-scoped)."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List
 import uuid
 
@@ -11,9 +11,7 @@ from sqlmodel import Field, SQLModel
 
 class Message(SQLModel, table=True):
     __tablename__ = "messages"
-    __table_args__ = (
-        {"postgresql_partition_by": "RANGE (created_at)"},
-    )
+    __table_args__ = ({"postgresql_partition_by": "RANGE (created_at)"},)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     org_id: uuid.UUID = Field(foreign_key="organizations.id", nullable=False, index=True)

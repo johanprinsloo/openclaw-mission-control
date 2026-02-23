@@ -72,31 +72,39 @@ async def seeded_pool(pool):
         # Create two orgs
         await conn.execute(
             "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
-            ORG_A, "Org Alpha", "org-alpha",
+            ORG_A,
+            "Org Alpha",
+            "org-alpha",
         )
         await conn.execute(
             "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)",
-            ORG_B, "Org Beta", "org-beta",
+            ORG_B,
+            "Org Beta",
+            "org-beta",
         )
 
         # Create users
         await conn.execute(
             "INSERT INTO users (id, email, type) VALUES ($1, $2, 'human')",
-            USER_A, "a@alpha.dev",
+            USER_A,
+            "a@alpha.dev",
         )
         await conn.execute(
             "INSERT INTO users (id, email, type) VALUES ($1, $2, 'human')",
-            USER_B, "b@beta.dev",
+            USER_B,
+            "b@beta.dev",
         )
 
         # Memberships
         await conn.execute(
             "INSERT INTO users_orgs (user_id, org_id, role, display_name) VALUES ($1, $2, 'administrator', 'User A')",
-            USER_A, ORG_A,
+            USER_A,
+            ORG_A,
         )
         await conn.execute(
             "INSERT INTO users_orgs (user_id, org_id, role, display_name) VALUES ($1, $2, 'administrator', 'User B')",
-            USER_B, ORG_B,
+            USER_B,
+            ORG_B,
         )
 
         # Projects (one per org)
@@ -104,11 +112,13 @@ async def seeded_pool(pool):
         proj_b = uuid.uuid4()
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Alpha Project', 'software')",
-            proj_a, ORG_A,
+            proj_a,
+            ORG_A,
         )
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Beta Project', 'docs')",
-            proj_b, ORG_B,
+            proj_b,
+            ORG_B,
         )
 
     yield pool
@@ -147,7 +157,8 @@ async def test_rls_insert_wrong_org_blocked(seeded_pool):
         proj_id = uuid.uuid4()
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Test', 'software')",
-            proj_id, ORG_A,
+            proj_id,
+            ORG_A,
         )
         # But inserting with ORG_B's id while set to ORG_A — RLS blocks visibility
         # The insert succeeds at SQL level but the row is invisible to the session.
@@ -157,7 +168,8 @@ async def test_rls_insert_wrong_org_blocked(seeded_pool):
         proj_id2 = uuid.uuid4()
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Sneaky', 'software')",
-            proj_id2, ORG_B,
+            proj_id2,
+            ORG_B,
         )
         # The row should NOT be visible
         rows = await conn.fetch("SELECT * FROM projects WHERE id = $1", proj_id2)
@@ -192,9 +204,13 @@ async def test_event_insert_succeeds(seeded_pool):
         await conn.execute(
             """INSERT INTO events (id, org_id, type, actor_type, payload, timestamp)
                VALUES ($1, $2, 'test.created', 'system', '{}', $3)""",
-            event_id, ORG_A, now,
+            event_id,
+            ORG_A,
+            now,
         )
-        rows = await conn.fetch("SELECT * FROM events WHERE id = $1 AND timestamp = $2", event_id, now)
+        rows = await conn.fetch(
+            "SELECT * FROM events WHERE id = $1 AND timestamp = $2", event_id, now
+        )
         assert len(rows) == 1
 
 
@@ -207,12 +223,15 @@ async def test_event_update_blocked(seeded_pool):
         await conn.execute(
             """INSERT INTO events (id, org_id, type, actor_type, payload, timestamp)
                VALUES ($1, $2, 'test.update', 'system', '{}', $3)""",
-            event_id, ORG_A, now,
+            event_id,
+            ORG_A,
+            now,
         )
         with pytest.raises(asyncpg.exceptions.RaiseError, match="immutable"):
             await conn.execute(
                 "UPDATE events SET type = 'tampered' WHERE id = $1 AND timestamp = $2",
-                event_id, now,
+                event_id,
+                now,
             )
 
 
@@ -225,12 +244,15 @@ async def test_event_delete_blocked(seeded_pool):
         await conn.execute(
             """INSERT INTO events (id, org_id, type, actor_type, payload, timestamp)
                VALUES ($1, $2, 'test.delete', 'system', '{}', $3)""",
-            event_id, ORG_A, now,
+            event_id,
+            ORG_A,
+            now,
         )
         with pytest.raises(asyncpg.exceptions.RaiseError, match="immutable"):
             await conn.execute(
                 "DELETE FROM events WHERE id = $1 AND timestamp = $2",
-                event_id, now,
+                event_id,
+                now,
             )
 
 
@@ -247,14 +269,19 @@ async def test_messages_insert_routed_to_partition(seeded_pool):
         ch_id = uuid.uuid4()
         await conn.execute(
             "INSERT INTO channels (id, org_id, name, type) VALUES ($1, $2, 'test-ch', 'org_wide')",
-            ch_id, ORG_A,
+            ch_id,
+            ORG_A,
         )
         msg_id = uuid.uuid4()
         now = datetime.now(timezone.utc)
         await conn.execute(
             """INSERT INTO messages (id, org_id, channel_id, sender_id, content, created_at)
                VALUES ($1, $2, $3, $4, 'hello', $5)""",
-            msg_id, ORG_A, ch_id, USER_A, now,
+            msg_id,
+            ORG_A,
+            ch_id,
+            USER_A,
+            now,
         )
         rows = await conn.fetch(
             "SELECT * FROM messages WHERE id = $1 AND created_at = $2", msg_id, now

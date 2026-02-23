@@ -19,13 +19,13 @@ from __future__ import annotations
 import json
 import re
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import desc, func, text, and_
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+from sqlalchemy import desc, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -34,7 +34,7 @@ from app.core.auth import (
     get_authenticated_user_ws,
     require_member,
 )
-from app.core.chat import ConnectionManager, manager
+from app.core.chat import manager
 from app.core.database import get_session
 from app.core.events import broadcast_event
 from app.models.assignments import ProjectUserAssignment
@@ -47,7 +47,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Regex for mention parsing: @<uuid> pattern
-MENTION_PATTERN = re.compile(r'@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', re.IGNORECASE)
+MENTION_PATTERN = re.compile(
+    r"@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})", re.IGNORECASE
+)
 
 
 # --- Schemas ---
@@ -102,9 +104,7 @@ async def _verify_channel_access(
     return True  # Default allow for unknown channel types
 
 
-async def _get_channel(
-    session: AsyncSession, channel_id: UUID, org_id: UUID
-) -> Channel | None:
+async def _get_channel(session: AsyncSession, channel_id: UUID, org_id: UUID) -> Channel | None:
     stmt = select(Channel).where(Channel.id == channel_id, Channel.org_id == org_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
@@ -225,20 +225,27 @@ async def list_channels(
 ):
     """List all channels the user has access to."""
     # Get org-wide channels
-    org_wide_stmt = select(Channel).where(
-        Channel.org_id == auth.org_id,
-        Channel.type == "org_wide",
-    ).order_by(Channel.name)
+    org_wide_stmt = (
+        select(Channel)
+        .where(
+            Channel.org_id == auth.org_id,
+            Channel.type == "org_wide",
+        )
+        .order_by(Channel.name)
+    )
     result = await session.execute(org_wide_stmt)
     org_wide_channels = result.scalars().all()
 
     # Get project channels the user is assigned to
     project_stmt = (
         select(Channel)
-        .join(ProjectUserAssignment, and_(
-            ProjectUserAssignment.project_id == Channel.project_id,
-            ProjectUserAssignment.user_id == auth.user_id,
-        ))
+        .join(
+            ProjectUserAssignment,
+            and_(
+                ProjectUserAssignment.project_id == Channel.project_id,
+                ProjectUserAssignment.user_id == auth.user_id,
+            ),
+        )
         .where(
             Channel.org_id == auth.org_id,
             Channel.type == "project",
@@ -255,23 +262,29 @@ async def list_channels(
     for ch in all_channels:
         if ch.type == "org_wide":
             # Count all org members
-            count_stmt = select(func.count()).select_from(UserOrg).where(UserOrg.org_id == auth.org_id)
+            count_stmt = (
+                select(func.count()).select_from(UserOrg).where(UserOrg.org_id == auth.org_id)
+            )
         else:
             # Count project members
-            count_stmt = select(func.count()).select_from(ProjectUserAssignment).where(
-                ProjectUserAssignment.project_id == ch.project_id
+            count_stmt = (
+                select(func.count())
+                .select_from(ProjectUserAssignment)
+                .where(ProjectUserAssignment.project_id == ch.project_id)
             )
         count_result = await session.execute(count_stmt)
         member_count = count_result.scalar() or 0
 
-        channel_data.append({
-            "id": str(ch.id),
-            "name": ch.name,
-            "type": ch.type,
-            "project_id": str(ch.project_id) if ch.project_id else None,
-            "created_at": ch.created_at.isoformat(),
-            "member_count": member_count,
-        })
+        channel_data.append(
+            {
+                "id": str(ch.id),
+                "name": ch.name,
+                "type": ch.type,
+                "project_id": str(ch.project_id) if ch.project_id else None,
+                "created_at": ch.created_at.isoformat(),
+                "member_count": member_count,
+            }
+        )
 
     return {"data": channel_data}
 
@@ -295,8 +308,10 @@ async def get_channel_details(
     if channel.type == "org_wide":
         count_stmt = select(func.count()).select_from(UserOrg).where(UserOrg.org_id == auth.org_id)
     else:
-        count_stmt = select(func.count()).select_from(ProjectUserAssignment).where(
-            ProjectUserAssignment.project_id == channel.project_id
+        count_stmt = (
+            select(func.count())
+            .select_from(ProjectUserAssignment)
+            .where(ProjectUserAssignment.project_id == channel.project_id)
         )
     count_result = await session.execute(count_stmt)
     member_count = count_result.scalar() or 0
@@ -351,11 +366,15 @@ async def websocket_endpoint(
             try:
                 frame = json.loads(data)
             except json.JSONDecodeError:
-                await websocket.send_text(json.dumps({
-                    "type": "error",
-                    "code": "INVALID_JSON",
-                    "message": "Could not parse message as JSON.",
-                }))
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "code": "INVALID_JSON",
+                            "message": "Could not parse message as JSON.",
+                        }
+                    )
+                )
                 continue
 
             frame_type = frame.get("type")
@@ -375,10 +394,14 @@ async def websocket_endpoint(
                             conn_info.subscribed_channels.add(cid)
                     except (ValueError, Exception):
                         pass
-                await websocket.send_text(json.dumps({
-                    "type": "subscribed",
-                    "channel_ids": list(conn_info.subscribed_channels),
-                }))
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "subscribed",
+                            "channel_ids": list(conn_info.subscribed_channels),
+                        }
+                    )
+                )
                 continue
 
             # --- Chat Message ---
@@ -388,38 +411,54 @@ async def websocket_endpoint(
                 client_id = frame.get("client_id")  # For optimistic update dedup
 
                 if not channel_id_str or not content:
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "code": "INVALID_MESSAGE",
-                        "message": "channel_id and content are required.",
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "code": "INVALID_MESSAGE",
+                                "message": "channel_id and content are required.",
+                            }
+                        )
+                    )
                     continue
 
                 try:
                     channel_id = UUID(channel_id_str)
                 except ValueError:
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "code": "INVALID_CHANNEL_ID",
-                        "message": "Invalid channel_id format.",
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "code": "INVALID_CHANNEL_ID",
+                                "message": "Invalid channel_id format.",
+                            }
+                        )
+                    )
                     continue
 
                 channel = await _get_channel(session, channel_id, auth.org_id)
                 if not channel:
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "code": "CHANNEL_NOT_FOUND",
-                        "message": "Channel not found.",
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "code": "CHANNEL_NOT_FOUND",
+                                "message": "Channel not found.",
+                            }
+                        )
+                    )
                     continue
 
                 if not await _verify_channel_access(session, channel, auth.user_id):
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "code": "ACCESS_DENIED",
-                        "message": "You are not a member of this project channel.",
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "code": "ACCESS_DENIED",
+                                "message": "You are not a member of this project channel.",
+                            }
+                        )
+                    )
                     continue
 
                 # Parse mentions from content and merge with explicit mentions
@@ -452,7 +491,9 @@ async def websocket_endpoint(
                     "sender_type": sender_type,
                     "content": content,
                     "created_at": new_message.created_at.isoformat(),
-                    "mentions": [str(m) for m in new_message.mentions] if new_message.mentions else [],
+                    "mentions": [str(m) for m in new_message.mentions]
+                    if new_message.mentions
+                    else [],
                     "client_id": client_id,  # Echo back for dedup
                 }
 
@@ -491,9 +532,14 @@ async def websocket_endpoint(
 async def get_messages(
     orgSlug: str,
     channel_id: UUID,
-    cursor: Optional[str] = Query(None, description="ISO timestamp cursor for pagination (exclusive, returns older messages)"),
+    cursor: Optional[str] = Query(
+        None, description="ISO timestamp cursor for pagination (exclusive, returns older messages)"
+    ),
     limit: int = Query(50, ge=1, le=100),
-    after: Optional[str] = Query(None, description="ISO timestamp to get messages newer than (for catching up after reconnect)"),
+    after: Optional[str] = Query(
+        None,
+        description="ISO timestamp to get messages newer than (for catching up after reconnect)",
+    ),
     auth: AuthenticatedUser = Depends(require_member),
     session: AsyncSession = Depends(get_session),
 ):
@@ -525,12 +571,7 @@ async def get_messages(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid 'after' timestamp format")
         conditions.append(Message.created_at > after_dt)
-        stmt = (
-            select(Message)
-            .where(*conditions)
-            .order_by(Message.created_at.asc())
-            .limit(limit)
-        )
+        stmt = select(Message).where(*conditions).order_by(Message.created_at.asc()).limit(limit)
     else:
         # Normal pagination: newest first
         if cursor:
