@@ -36,7 +36,10 @@ def event_loop():
 @pytest.fixture(scope="module")
 async def pool():
     """Create a connection pool and run migrations."""
-    p = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=5)
+    try:
+        p = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=5)
+    except OSError:
+        pytest.skip("PostgreSQL not reachable — skipping schema integration tests")
 
     # Run alembic upgrade head via subprocess
     import subprocess

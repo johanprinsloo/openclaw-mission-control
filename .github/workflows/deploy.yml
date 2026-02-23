@@ -15,7 +15,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Run Tests
-    
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mission_control_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -34,7 +49,8 @@ jobs:
     - name: Run tests
       run: uv run pytest packages/server/tests/ -v --tb=short
       env:
-        MC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        MC_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/mission_control_test
+        MC_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mission_control_test
         MC_SECRET_KEY: ${{ secrets.SECRET_KEY }}
         MC_DEBUG: 'true'
 
