@@ -1,15 +1,16 @@
-# Mission Control: AWS Lightsail Manual Deployment Guide
+# Mission Control: AWS Lightsail Deployment Guide
 
-This guide provides step-by-step instructions for manually deploying Mission Control to AWS Lightsail, including GitHub CI/CD setup for automated builds and deployments.
+This guide covers deploying Mission Control to AWS Lightsail via GitHub Actions CI/CD.
 
 ## Table of Contents
 1. [AWS Lightsail Setup](#aws-lightsail-setup)
 2. [GitHub Repository Configuration](#github-repository-configuration)
-3. [CI/CD Pipeline Setup](#cicd-pipeline-setup)
-4. [Environment Variables & Secrets](#environment-variables--secrets)
-5. [Database Setup](#database-setup)
-6. [First Deployment](#first-deployment)
+3. [CI/CD Workflows](#cicd-workflows)
+4. [Database Setup](#database-setup)
+5. [First Deployment](#first-deployment)
+6. [Environment Variables & Secrets Reference](#environment-variables--secrets-reference)
 7. [Troubleshooting](#troubleshooting)
+8. [Cost Summary](#cost-summary)
 
 ---
 
@@ -20,7 +21,6 @@ This guide provides step-by-step instructions for manually deploying Mission Con
 1. **Sign up for AWS** (if not already done):
    - Go to https://aws.amazon.com
    - Create a new account or sign in
-   - Complete the registration process
 
 2. **Create an IAM User** (recommended over using root account):
    - Navigate to **IAM > Users > Add User**
@@ -28,66 +28,44 @@ This guide provides step-by-step instructions for manually deploying Mission Con
    - Access type: **Programmatic access** (for CI/CD)
    - Permissions: Attach policies directly:
      - `AmazonLightsailFullAccess`
-     - `AmazonRDSFullAccess` (if using RDS instead of Lightsail DB)
-     - `AmazonEC2ContainerRegistryFullAccess` (optional, for ECR)
-   - Tags: Add `Project=MissionControl` (optional)
-   - **Save the Access Key ID and Secret Access Key** - you'll need these for GitHub
+   - **Save the Access Key ID and Secret Access Key** — you'll need these for GitHub secrets
 
 ### Step 2: Create Lightsail Container Service
 
 1. **Navigate to Lightsail**:
    - Go to https://lightsail.aws.amazon.com
-   - Select your region (recommend `us-west-2` for cost/performance)
+   - Select your region (recommend `us-west-2`)
 
 2. **Create Container Service**:
-   - Click **"Containers"** tab
-   - Click **"Create container service"**
-   - **Service name**: `mission-control-prod` (or `mission-control-dev`)
-   - **Deployment**: Choose **"Create a deployment"**
-   - **Power**: Select **"Nano"** ($7/month) for dev, or **"Micro"** ($12/month) for light production
-   - **Scale**: Set to 1 container for dev, 2 for production
-   - Click **"Next"**
+   - Click **"Containers"** tab > **"Create container service"**
+   - **Service name**: `mission-control-prod` (must match the `LIGHTSAIL_SERVICE_NAME` GitHub variable)
+   - **Power**: **"Nano"** ($7/month) for dev, or **"Micro"** ($12/month) for production
+   - **Scale**: 1 for dev, 2 for production
 
 3. **Configure Container**:
    - **Container name**: `app`
-   - **Image**: Leave blank for now (we'll push from GitHub)
-   - **Ports**: Add `8000` (HTTP)
-   - **Environment variables**: (we'll set these in deployment, leave empty for now)
-   - Click **"Next"**
+   - **Image**: Leave blank (CI/CD pushes the image)
+   - **Ports**: `8000` (HTTP)
 
 4. **Public Endpoint**:
-   - Enable **"Public endpoint"**
+   - Enable public endpoint
    - **Health check path**: `/health`
-   - Click **"Next"**
-   - Review and click **"Create container service"**
+   - Create the service
 
-5. **Get the Service URL**:
-   - After creation, note the **Container service URL** (e.g., `https://mission-control-prod.abc123xyz.us-west-2.cs.amazonlightsail.com`)
-   - You'll need this for DNS/GitHub
+5. **Note the Service URL** (e.g., `https://mission-control-prod.abc123xyz.us-west-2.cs.amazonlightsail.com`)
+
+> **Note**: The deploy workflow will also auto-create the service if it doesn't exist yet (see `Ensure Lightsail Service exists` step in `deploy.yml`).
 
 ### Step 3: Create Lightsail Database
 
-1. **Navigate to Databases**:
-   - In Lightsail, click **"Databases"** tab
-   - Click **"Create database"**
-
-2. **Database Configuration**:
-   - **Database name**: `mission-control-db`
+1. In Lightsail, click **"Databases"** > **"Create database"**
+2. **Configuration**:
    - **Database engine**: PostgreSQL 16
-   - **Database plan**: 
-     - Dev: `db.t2.micro` ($15/month)
-     - Prod: `db.t2.small` ($25/month)
+   - **Plan**: Micro ($15/month for dev)
    - **Master username**: `postgres`
-   - **Master password**: Generate a strong password and **SAVE IT** (you'll need it for GitHub secrets)
-
-3. **Create Database**:
-   - Click **"Create database"**
-   - Wait for status to show **"Available"** (this takes a few minutes)
-
-4. **Get Database Endpoint**:
-   - Click on your database
-   - Note the **Endpoint** (e.g., `mission-control-db.xyz.us-west-2.rds.amazonaws.com`)
-   - Note the **Port** (usually `5432`)
+   - **Master password**: Generate a strong password and **save it**
+3. Wait for status **"Available"**
+4. Note the **Endpoint** and **Port** (usually `5432`)
 
 ---
 
@@ -97,365 +75,137 @@ This guide provides step-by-step instructions for manually deploying Mission Con
 
 Navigate to **Settings > Secrets and variables > Actions > Secrets tab**:
 
-**AWS Credentials (Required):**
-- Name: `AWS_ACCESS_KEY_ID`
-  - Value: Your IAM user's Access Key ID
-  
-- Name: `AWS_SECRET_ACCESS_KEY`
-  - Value: Your IAM user's Secret Access Key
-
-**Database & App Secrets (Required):**
-- Name: `DATABASE_URL`
-  - Value: Full connection string with password: `postgresql+asyncpg://postgres:PASSWORD@host:5432/mission_control`
-  
-- Name: `SECRET_KEY`
-  - Value: Generate with: `openssl rand -base64 32`
+| Secret | Description | Example |
+|--------|-------------|---------|
+| `AWS_ACCESS_KEY_ID` | IAM user access key | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key | `wJalrXUtnFEMI/K7MDENG/...` |
+| `DATABASE_URL` | Full asyncpg connection string | `postgresql+asyncpg://postgres:PASS@host:5432/mission_control` |
+| `SECRET_KEY` | App secret for JWT/crypto — generate with `openssl rand -base64 32` | `random-base64-string` |
 
 ### Step 2: Add GitHub Variables (Non-Sensitive Config)
 
-Navigate to **Settings > Secrets and variables > Actions > Variables tab** (these are editable!):
+Navigate to **Settings > Secrets and variables > Actions > Variables tab**:
 
-**AWS Configuration:**
-- Name: `AWS_REGION`
-  - Value: `us-west-2` (or your region)
-  
-- Name: `LIGHTSAIL_SERVICE_NAME`
-  - Value: `mission-control-prod` (or your service name)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AWS_REGION` | AWS region | `us-west-2` |
+| `LIGHTSAIL_SERVICE_NAME` | Container service name | `mission-control-prod` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `https://app.example.com,http://localhost:5173` |
 
-**Application Configuration:**
-- Name: `CORS_ORIGINS`
-  - Value: `["*"]` (for dev) or `["https://yourdomain.com"]` (for production)
-  - Note: Can be edited anytime without regenerating
-
-### Step 3: Optional Secrets
-
-- `SIGNAL_API_KEY` - For Signal notifications
-- `SENTRY_DSN` - For error tracking
+> **Important**: `CORS_ORIGINS` is a plain comma-separated string, **not** a JSON array.
+> Single values work fine too: `https://app.example.com`
 
 ### Why Variables vs Secrets?
 
 | Type | Use For | Editable? | Visible? |
 |------|---------|-----------|----------|
-| **Secrets** | Passwords, API keys, tokens | ❌ No (must recreate) | ❌ Masked in logs |
-| **Variables** | Config, regions, service names | ✅ Yes (edit anytime) | ✅ Visible in UI |
+| **Secrets** | Passwords, API keys, tokens | Must recreate | Masked in logs |
+| **Variables** | Config, regions, service names | Edit anytime | Visible in UI |
 
-**Benefits of using Variables:**
-- ✅ Change service name without recreating secret
-- ✅ View current region in GitHub UI
-- ✅ Team members can see config without accessing secrets
-- ✅ Audit trail of variable changes
+### Step 3: Optional Secrets
 
-### Step 2: Enable GitHub Actions
+| Secret | Description |
+|--------|-------------|
+| `SIGNAL_API_KEY` | Signal Gateway API key |
+| `SENTRY_DSN` | Sentry error tracking DSN |
 
-1. **Verify Actions are enabled**:
-   - Go to **Settings > Actions > General**
-   - Ensure **"Allow all actions and reusable workflows"** is selected
-   - Click **Save**
+### Step 4: Enable GitHub Actions
+
+- Go to **Settings > Actions > General**
+- Ensure **"Allow all actions and reusable workflows"** is selected
 
 ---
 
-## CI/CD Pipeline Setup
+## CI/CD Workflows
 
-### Step 1: Create GitHub Actions Workflow
+Three workflow files drive the pipeline. All are in `.github/workflows/` and are the source of truth — refer to them directly for implementation details.
 
-1. **Create Workflow Directory**:
-   ```bash
-   mkdir -p .github/workflows
-   ```
+### CI: Lint & Test on Every Push
 
-2. **Create Deployment Workflow** (`.github/workflows/deploy.yml`):
+**File**: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
 
-```yaml
-name: Deploy to AWS Lightsail
+Triggers on pushes and PRs to `main`. Runs four parallel jobs:
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+| Job | What it does |
+|-----|-------------|
+| **lint-python** | Ruff lint + format check, mypy type checking across `packages/` |
+| **lint-frontend** | ESLint + TypeScript check on `frontend/` |
+| **test-server** | pytest against a PostgreSQL 16 + Redis service container |
+| **test-frontend** | Frontend test suite |
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  LIGHTSAIL_SERVICE_NAME: ${{ secrets.LIGHTSAIL_SERVICE_NAME }}
+A final **build** job runs after all four pass, building Python packages and the frontend.
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    name: Run Tests
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+### Deploy: Build & Ship to Lightsail
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+**File**: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: 'latest'
+Triggers on pushes to `main`, PRs to `main`, and manual dispatch. Two jobs:
 
-    - name: Install dependencies
-      run: |
-        cd packages/server
-        uv sync --dev
+1. **test** — Runs server tests against a PostgreSQL service container (same as CI)
+2. **build-and-deploy** — Only runs on `main` branch after tests pass:
+   - Builds Docker image using the repo-root [`Dockerfile`](../../Dockerfile)
+   - Installs `lightsailctl` plugin and pushes image to Lightsail
+   - Creates a deployment with the `app` container (FastAPI) and a `redis` sidecar
+   - Polls the service state until `RUNNING`/`READY` (up to 10 minutes)
 
-    - name: Run tests
-      run: |
-        cd packages/server
-        uv run pytest tests/ -v --tb=short
-      env:
-        MC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        MC_SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        MC_DEBUG: 'true'
+Environment variables injected into the Lightsail container at deploy time:
 
-  build-and-deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    name: Build and Deploy to Lightsail
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+| Env var | Source |
+|---------|--------|
+| `MC_DATABASE_URL` | `secrets.DATABASE_URL` |
+| `MC_SECRET_KEY` | `secrets.SECRET_KEY` |
+| `MC_CORS_ORIGINS` | `vars.CORS_ORIGINS` |
+| `MC_REDIS_URL` | `redis://localhost:6379/0` (sidecar) |
+| `MC_DEBUG` | `false` |
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+### Database Migration: Manual Trigger
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+**File**: [`.github/workflows/db-migrate.yaml`](../../.github/workflows/db-migrate.yaml)
 
-    - name: Build Docker image
-      run: |
-        docker build -t mission-control:${{ github.sha }} .
-        docker tag mission-control:${{ github.sha }} mission-control:latest
+A `workflow_dispatch` workflow — trigger it manually from the GitHub **Actions** tab.
 
-    - name: Push to Lightsail Container Registry
-      run: |
-        # Install Lightsail plugin
-        aws lightsail push-container-image \
-          --service-name ${{ secrets.LIGHTSAIL_SERVICE_NAME }} \
-          --label app \
-          --image mission-control:latest \
-          --region ${{ secrets.AWS_REGION }}
-
-    - name: Get container image digest
-      id: get-image
-      run: |
-        IMAGE_DIGEST=$(aws lightsail get-container-images \
-          --service-name ${{ secrets.LIGHTSAIL_SERVICE_NAME }} \
-          --region ${{ secrets.AWS_REGION }} \
-          --query 'containerImages[0].image' \
-          --output text)
-        echo "image=$IMAGE_DIGEST" >> $GITHUB_OUTPUT
-
-    - name: Deploy to Lightsail
-      run: |
-        aws lightsail create-container-service-deployment \
-          --service-name ${{ secrets.LIGHTSAIL_SERVICE_NAME }} \
-          --region ${{ secrets.AWS_REGION }} \
-          --containers "{
-            \"app\": {
-              \"image\": \"${{ steps.get-image.outputs.image }}\",
-              \"ports\": {\"8000\": \"HTTP\"},
-              \"environment\": {
-                \"MC_DEBUG\": \"false\",
-                \"MC_DATABASE_URL\": \"${{ secrets.DATABASE_URL }}\",
-                \"MC_SECRET_KEY\": \"${{ secrets.SECRET_KEY }}\",
-                \"MC_CORS_ORIGINS\": \"${{ secrets.CORS_ORIGINS }}\",
-                \"MC_REDIS_URL\": \"redis://localhost:6379/0\"
-              }
-            },
-            \"redis\": {
-              \"image\": \"redis:7-alpine\",
-              \"environment\": {
-                \"REDIS_ARGS\": \"--maxmemory 128mb --maxmemory-policy allkeys-lru\"
-              }
-            }
-          }" \
-          --public-endpoint "{
-            \"containerName\": \"app\",
-            \"containerPort\": 8000,
-            \"healthCheck\": {
-              \"path\": \"/health\",
-              \"intervalSeconds\": 30,
-              \"timeoutSeconds\": 5,
-              \"healthyThreshold\": 2,
-              \"unhealthyThreshold\": 3
-            }
-          }"
-
-    - name: Wait for deployment
-      run: |
-        echo "Waiting for deployment to complete..."
-        aws lightsail wait container-service-deployment-complete \
-          --service-name ${{ secrets.LIGHTSAIL_SERVICE_NAME }} \
-          --region ${{ secrets.AWS_REGION }}
-        echo "Deployment complete!"
-
-    - name: Get deployment URL
-      run: |
-        URL=$(aws lightsail get-container-services \
-          --service-name ${{ secrets.LIGHTSAIL_SERVICE_NAME }} \
-          --region ${{ secrets.AWS_REGION }} \
-          --query 'containerServices[0].url' \
-          --output text)
-        echo "Deployed to: $URL"
-        echo "DEPLOYMENT_URL=$URL" >> $GITHUB_ENV
-
-    - name: Notify on success
-      if: success()
-      run: |
-        echo "✅ Deployment successful!"
-        echo "🌐 Application URL: ${{ env.DEPLOYMENT_URL }}"
-        # Add Slack/Discord notification here if desired
-
-    - name: Notify on failure
-      if: failure()
-      run: |
-        echo "❌ Deployment failed!"
-        # Add Slack/Discord notification here if desired
-```
-
-### Step 2: Create Pull Request Workflow (Optional)
-
-Create `.github/workflows/pr-checks.yml`:
-
-```yaml
-name: PR Checks
-
-on:
-  pull_request:
-    branches: [main, develop]
-
-jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
-    name: Lint and Test
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-
-    - name: Install dependencies
-      run: |
-        cd packages/server
-        uv sync --dev
-
-    - name: Run linter
-      run: |
-        cd packages/server
-        uv run ruff check .
-        uv run ruff format --check .
-
-    - name: Run type checker
-      run: |
-        cd packages/server
-        uv run mypy app/
-
-    - name: Run tests
-      run: |
-        cd packages/server
-        uv run pytest tests/ -v
-```
+Runs `alembic upgrade head` against the production database using `secrets.DATABASE_URL`. Use this to initialize a fresh database or apply new migrations after deploying schema changes.
 
 ---
 
 ## Database Setup
 
-### Step 1: Run Migrations
+### Option A: GitHub Actions (Recommended)
 
-After the first deployment, you need to run database migrations:
+1. Ensure `DATABASE_URL` secret is set (see above)
+2. Go to **Actions** tab in GitHub
+3. Select **"Database Migration"** workflow
+4. Click **"Run workflow"**
 
-**Option A: Local Machine (with SSH tunnel)**
+This runs `alembic upgrade head` against your production database.
+
+### Option B: Local Machine
+
+If you need to run migrations from your local machine (e.g., against a Lightsail database with public access enabled):
+
 ```bash
-# Install AWS Session Manager plugin if needed
-# https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
-
-# Port forward to the database
-aws lightsail open-instance-public-ports \
-  --instance-name mission-control-db \
-  --port-info fromPort=5432,toPort=5432,protocol=tcp
-
-# Run migrations
 MC_DATABASE_URL="postgresql+asyncpg://postgres:PASSWORD@DB_ENDPOINT:5432/mission_control" \
-  uv run alembic upgrade head
+  uv run --directory packages/server alembic upgrade head
 ```
-
-**Option B: GitHub Actions (One-time setup)**
-Add a manual workflow (`.github/workflows/db-migrate.yml`):
-
-```yaml
-name: Database Migration
-
-on:
-  workflow_dispatch:
-
-jobs:
-  migrate:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Python & uv
-      uses: astral-sh/setup-uv@v3
-      
-    - name: Install dependencies
-      run: |
-        cd packages/server
-        uv sync --dev
-        
-    - name: Run migrations
-      run: |
-        cd packages/server
-        uv run alembic upgrade head
-      env:
-        MC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
-```
-
-Then trigger manually from GitHub Actions tab.
 
 ---
 
 ## First Deployment
 
-### Step 1: Initial Commit
+### Step 1: Push to Main
 
-1. **Commit the workflow files**:
-   ```bash
-   git add .github/workflows/
-   git commit -m "Add GitHub Actions CI/CD for Lightsail deployment"
-   git push origin main
-   ```
+1. Ensure all GitHub secrets and variables are configured (see above)
+2. Push to `main` — this triggers both `ci.yml` and `deploy.yml`
+3. Monitor the **Actions** tab for progress
 
-2. **Verify Actions are running**:
-   - Go to **Actions** tab in GitHub
-   - You should see the "Deploy to AWS Lightsail" workflow running
-   - Monitor the logs
-
-### Step 2: First-Time Setup
+### Step 2: Initialize the Database
 
 After the first deployment completes:
 
-1. **Run database migrations** (see Database Setup section)
+1. **Run database migrations** via the `db-migrate` workflow (see Database Setup above)
 
-2. **Create admin user**:
+2. **Create admin user** (run locally with the production DB URL):
    ```bash
-   # SSH into the container or run locally with DB URL
    MC_DATABASE_URL="your-db-url" \
      uv run python -m app.scripts.create_local_admin \
      --email admin@yourdomain.com \
@@ -463,33 +213,43 @@ After the first deployment completes:
    ```
 
 3. **Access the application**:
-   - Get the URL from Lightsail console or GitHub Actions logs
-   - Navigate to `https://your-url.com/docs` for API docs
-   - Login at `https://your-url.com/login`
+   - API docs: `https://your-lightsail-url/docs`
+   - Health check: `https://your-lightsail-url/health`
 
 ---
 
 ## Environment Variables & Secrets Reference
 
-### Required Secrets
+### Application Configuration (`MC_` prefix)
 
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `AWS_REGION` | AWS region | `us-west-2` |
-| `LIGHTSAIL_SERVICE_NAME` | Container service name | `mission-control-prod` |
-| `DATABASE_URL` | Full PostgreSQL connection string | `postgresql+asyncpg://user:pass@host:5432/db` |
-| `SECRET_KEY` | App secret for JWT/crypto | `random-base64-string` |
-| `CORS_ORIGINS` | Allowed frontend origins | `["https://app.example.com"]` |
+All application settings are loaded via Pydantic in `packages/server/app/core/config.py` with the `MC_` prefix.
 
-### Optional Secrets
+| Env var | Type | Default | Description |
+|---------|------|---------|-------------|
+| `MC_DATABASE_URL` | string | `postgresql+asyncpg://...localhost.../mission_control` | Async PostgreSQL connection string |
+| `MC_REDIS_URL` | string | `redis://localhost:6379/0` | Redis connection string |
+| `MC_SECRET_KEY` | string | `CHANGE_ME_IN_PRODUCTION` | JWT signing key |
+| `MC_CORS_ORIGINS` | string | `http://localhost:5173` | Comma-separated allowed origins |
+| `MC_DEBUG` | bool | `false` | Enable debug mode |
+| `MC_HOST` | string | `0.0.0.0` | Server bind host |
+| `MC_PORT` | int | `8000` | Server bind port |
 
-| Secret | Description | When Needed |
-|--------|-------------|-------------|
-| `SIGNAL_API_KEY` | Signal Gateway API key | For Signal notifications |
-| `DISCORD_WEBHOOK` | Discord webhook URL | For Discord notifications |
-| `SENTRY_DSN` | Sentry error tracking | For production monitoring |
+### GitHub Secrets (set in repo settings)
+
+| Secret | Used by |
+|--------|---------|
+| `AWS_ACCESS_KEY_ID` | `deploy.yml` |
+| `AWS_SECRET_ACCESS_KEY` | `deploy.yml` |
+| `DATABASE_URL` | `deploy.yml`, `db-migrate.yaml` |
+| `SECRET_KEY` | `deploy.yml`, `ci.yml` (tests) |
+
+### GitHub Variables (set in repo settings)
+
+| Variable | Used by |
+|----------|---------|
+| `AWS_REGION` | `deploy.yml` |
+| `LIGHTSAIL_SERVICE_NAME` | `deploy.yml` |
+| `CORS_ORIGINS` | `deploy.yml` |
 
 ---
 
@@ -497,35 +257,40 @@ After the first deployment completes:
 
 ### Deployment Fails
 
-**Issue**: `Container image not found`
-- **Solution**: Ensure the image was pushed successfully in the "Push to Lightsail" step
+**`Container image not found`**
+- Check the "Push to Lightsail" step succeeded in the deploy workflow
 
-**Issue**: `Health check failed`
-- **Solution**: 
-  - Check that `/health` endpoint returns 200
-  - Verify database is accessible from container
-  - Check environment variables are set correctly
+**`Health check failed`**
+- Verify `/health` endpoint returns 200
+- Check database is accessible from the container
+- Verify environment variables are set correctly in `deploy.yml`
 
-**Issue**: `Database connection refused`
-- **Solution**: 
-  - Verify Lightsail DB security group allows traffic from container service
-  - Check DATABASE_URL format (should use public endpoint)
+**`Database connection refused`**
+- Lightsail DB must allow traffic from the container service
+- Check `DATABASE_URL` format uses the public endpoint
+
+**`pydantic SettingsError / JSONDecodeError on cors_origins`**
+- `MC_CORS_ORIGINS` must be a plain comma-separated string (e.g., `https://a.com,https://b.com`), not a JSON array
 
 ### GitHub Actions Fails
 
-**Issue**: `Credentials not found`
-- **Solution**: Verify all secrets are added to GitHub repository settings
+**`Credentials not found`**
+- Verify all secrets/variables are added in GitHub repo settings
 
-**Issue**: `Tests fail`
-- **Solution**: Check test logs, may need to adjust test database configuration
+**`Group 'dev' is not defined`**
+- Root `pyproject.toml` must have a `[dependency-groups]` section with `dev`
+- Workflows must use `uv sync --all-packages --group dev`
+
+**`lightsailctl plugin not found`**
+- The deploy workflow installs it automatically; check the "Install lightsailctl" step
 
 ### Application Issues
 
-**Issue**: `502 Bad Gateway`
-- **Solution**: Container crashed, check CloudWatch logs or Lightsail container logs
+**`502 Bad Gateway`**
+- Container crashed — check Lightsail container logs in the AWS console
 
-**Issue**: `CORS errors`
-- **Solution**: Update `CORS_ORIGINS` secret with correct frontend URL
+**CORS errors in browser**
+- Update the `CORS_ORIGINS` variable in GitHub with the correct frontend URL
 
 ---
 
@@ -535,27 +300,18 @@ After the first deployment completes:
 |-----------|---------|-------------|
 | Container Service | Lightsail Nano | **$7** |
 | Database | Lightsail PostgreSQL (micro) | **$15** |
-| Redis | In-container (sidecar) | **$0** |
-| GitHub Actions | Free tier (2000 minutes) | **$0** |
+| Redis | In-container sidecar | **$0** |
+| GitHub Actions | Free tier (2000 min) | **$0** |
 | **Total** | | **~$22/month** |
 
 ---
 
-## Next Steps
+## Running CI Locally
 
-1. ✅ Set up AWS Lightsail services (container + database)
-2. ✅ Configure GitHub secrets
-3. ✅ Push workflow files to trigger first deployment
-4. ✅ Run database migrations
-5. ✅ Create initial admin user
-6. ✅ Set up custom domain (optional)
-7. ✅ Configure monitoring/alerts (CloudWatch)
+You can run the Python CI steps (lint + test) locally without GitHub Actions:
 
----
+```bash
+./scripts/ci-local.sh
+```
 
-## Support
-
-For issues with:
-- **AWS Lightsail**: https://lightsail.aws.amazon.com/docs
-- **GitHub Actions**: https://docs.github.com/en/actions
-- **Mission Control**: Check the project README or open an issue
+This runs ruff, mypy, and pytest using the same commands as the CI workflows. See the script for required environment variables (PostgreSQL and Redis must be running).
