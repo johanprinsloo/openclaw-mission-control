@@ -5,6 +5,7 @@ Application configuration loaded from environment variables.
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,8 +41,15 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
-    # CORS
+    # CORS — accepts a JSON array or comma-separated string in MC_CORS_ORIGINS
     cors_origins: list[str] = ["http://localhost:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v: object) -> object:
+        if isinstance(v, str) and not v.startswith("["):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
 
 @lru_cache

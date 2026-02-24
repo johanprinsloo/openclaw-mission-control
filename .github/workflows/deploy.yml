@@ -162,7 +162,7 @@ jobs:
             --query 'containerServices[0].state' \
             --output text)
           echo "  Attempt $i/30 — state: $STATE"
-          if [ "$STATE" = "RUNNING" ]; then
+          if [ "$STATE" = "RUNNING" ] || [ "$STATE" = "READY" ]; then
             echo "Deployment complete!"
             exit 0
           elif [ "$STATE" = "DEPLOYING" ] || [ "$STATE" = "UPDATING" ]; then
