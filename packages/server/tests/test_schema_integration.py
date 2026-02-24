@@ -27,6 +27,9 @@ USER_B = uuid.uuid4()
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
+APP_ROLE = "mc_app_test"
+
+
 @pytest.fixture(scope="module")
 async def pool():
     """Create a connection pool and run migrations."""
@@ -35,7 +38,6 @@ async def pool():
     except OSError:
         pytest.skip("PostgreSQL not reachable — skipping schema integration tests")
 
-    # Run alembic upgrade head via subprocess
     import subprocess
 
     env = os.environ.copy()
@@ -50,9 +52,19 @@ async def pool():
     if result.returncode != 0:
         pytest.fail(f"Alembic upgrade failed:\n{result.stderr}")
 
+    # Create a non-superuser role so RLS policies apply (superusers bypass RLS).
+    async with p.acquire() as conn:
+        await conn.execute(f"DROP ROLE IF EXISTS {APP_ROLE}")
+        await conn.execute(f"CREATE ROLE {APP_ROLE} NOLOGIN")
+        await conn.execute(f"GRANT ALL ON ALL TABLES IN SCHEMA public TO {APP_ROLE}")
+        await conn.execute(f"GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO {APP_ROLE}")
+        await conn.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}")
+
     yield p
 
     # Cleanup: downgrade
+    async with p.acquire() as conn:
+        await conn.execute(f"DROP ROLE IF EXISTS {APP_ROLE}")
     subprocess.run(
         ["uv", "run", "alembic", "downgrade", "base"],
         cwd=os.path.join(os.path.dirname(__file__), ".."),
@@ -129,58 +141,58 @@ async def seeded_pool(pool):
 async def test_rls_select_isolation(seeded_pool):
     """Setting org_id to Org A should only return Org A's projects."""
     async with seeded_pool.acquire() as conn:
+        await conn.execute(f"SET ROLE {APP_ROLE}")
         await conn.execute(f"SET app.current_org_id = '{ORG_A}'")
         rows = await conn.fetch("SELECT * FROM projects")
         assert len(rows) == 1
         assert rows[0]["name"] == "Alpha Project"
+        await conn.execute("RESET ROLE")
 
 
 async def test_rls_cross_tenant_invisible(seeded_pool):
     """Org B's data should be invisible when set to Org A."""
     async with seeded_pool.acquire() as conn:
+        await conn.execute(f"SET ROLE {APP_ROLE}")
         await conn.execute(f"SET app.current_org_id = '{ORG_A}'")
         rows = await conn.fetch("SELECT * FROM projects WHERE name = 'Beta Project'")
         assert len(rows) == 0
+        await conn.execute("RESET ROLE")
 
 
 async def test_rls_insert_wrong_org_blocked(seeded_pool):
     """Inserting with Org B's id while set to Org A should be blocked by RLS."""
     async with seeded_pool.acquire() as conn:
+        await conn.execute(f"SET ROLE {APP_ROLE}")
         await conn.execute(f"SET app.current_org_id = '{ORG_A}'")
-        # This insert should succeed (org_id matches session)
         proj_id = uuid.uuid4()
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Test', 'software')",
             proj_id,
             ORG_A,
         )
-        # But inserting with ORG_B's id while set to ORG_A — RLS blocks visibility
-        # The insert succeeds at SQL level but the row is invisible to the session.
-        # With FORCE RLS + restrictive policy, it depends on policy type.
-        # Our policy uses USING only (not WITH CHECK), so INSERTs are allowed
-        # but the row won't be visible. Let's test that.
+        # Inserting with ORG_B's id while set to ORG_A — RLS blocks visibility.
+        # Policy uses USING only (not WITH CHECK), so the INSERT succeeds
+        # but the row won't be visible to this session.
         proj_id2 = uuid.uuid4()
         await conn.execute(
             "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Sneaky', 'software')",
             proj_id2,
             ORG_B,
         )
-        # The row should NOT be visible
         rows = await conn.fetch("SELECT * FROM projects WHERE id = $1", proj_id2)
         assert len(rows) == 0
-
-        # Clean up
-        # Need to reset to see it, or use superuser
-        await conn.execute("RESET app.current_org_id")
+        await conn.execute("RESET ROLE")
 
 
 async def test_rls_users_orgs_isolation(seeded_pool):
     """users_orgs should be RLS-scoped."""
     async with seeded_pool.acquire() as conn:
+        await conn.execute(f"SET ROLE {APP_ROLE}")
         await conn.execute(f"SET app.current_org_id = '{ORG_A}'")
         rows = await conn.fetch("SELECT * FROM users_orgs")
         assert len(rows) == 1
         assert rows[0]["display_name"] == "User A"
+        await conn.execute("RESET ROLE")
 
 
 # ---------------------------------------------------------------------------
