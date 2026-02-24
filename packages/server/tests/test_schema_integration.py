@@ -9,11 +9,10 @@ independent of the ORM layer.
 
 import os
 import uuid
-import pytest
-import asyncio
 from datetime import datetime, timezone
 
 import asyncpg
+import pytest
 
 DATABASE_URL = os.getenv(
     "MC_TEST_DATABASE_URL",
@@ -25,12 +24,7 @@ ORG_B = uuid.uuid4()
 USER_A = uuid.uuid4()
 USER_B = uuid.uuid4()
 
-
-@pytest.fixture(scope="module")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 @pytest.fixture(scope="module")
@@ -132,7 +126,6 @@ async def seeded_pool(pool):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_rls_select_isolation(seeded_pool):
     """Setting org_id to Org A should only return Org A's projects."""
     async with seeded_pool.acquire() as conn:
@@ -142,7 +135,6 @@ async def test_rls_select_isolation(seeded_pool):
         assert rows[0]["name"] == "Alpha Project"
 
 
-@pytest.mark.asyncio
 async def test_rls_cross_tenant_invisible(seeded_pool):
     """Org B's data should be invisible when set to Org A."""
     async with seeded_pool.acquire() as conn:
@@ -151,7 +143,6 @@ async def test_rls_cross_tenant_invisible(seeded_pool):
         assert len(rows) == 0
 
 
-@pytest.mark.asyncio
 async def test_rls_insert_wrong_org_blocked(seeded_pool):
     """Inserting with Org B's id while set to Org A should be blocked by RLS."""
     async with seeded_pool.acquire() as conn:
@@ -183,7 +174,6 @@ async def test_rls_insert_wrong_org_blocked(seeded_pool):
         await conn.execute("RESET app.current_org_id")
 
 
-@pytest.mark.asyncio
 async def test_rls_users_orgs_isolation(seeded_pool):
     """users_orgs should be RLS-scoped."""
     async with seeded_pool.acquire() as conn:
@@ -198,7 +188,6 @@ async def test_rls_users_orgs_isolation(seeded_pool):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_event_insert_succeeds(seeded_pool):
     """Events can be inserted."""
     async with seeded_pool.acquire() as conn:
@@ -217,7 +206,6 @@ async def test_event_insert_succeeds(seeded_pool):
         assert len(rows) == 1
 
 
-@pytest.mark.asyncio
 async def test_event_update_blocked(seeded_pool):
     """UPDATE on events should be rejected by the immutability trigger."""
     async with seeded_pool.acquire() as conn:
@@ -238,7 +226,6 @@ async def test_event_update_blocked(seeded_pool):
             )
 
 
-@pytest.mark.asyncio
 async def test_event_delete_blocked(seeded_pool):
     """DELETE on events should be rejected by the immutability trigger."""
     async with seeded_pool.acquire() as conn:
@@ -264,7 +251,6 @@ async def test_event_delete_blocked(seeded_pool):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_messages_insert_routed_to_partition(seeded_pool):
     """Messages should be insertable and routed to the correct partition."""
     async with seeded_pool.acquire() as conn:
@@ -298,7 +284,6 @@ async def test_messages_insert_routed_to_partition(seeded_pool):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_fts_projects(seeded_pool):
     """Projects should be searchable via search_vector."""
     async with seeded_pool.acquire() as conn:
