@@ -62,8 +62,11 @@ async def pool():
 
     yield p
 
-    # Cleanup: downgrade
+    # Cleanup: revoke privileges then drop role before downgrade
     async with p.acquire() as conn:
+        await conn.execute(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {APP_ROLE}")
+        await conn.execute(f"REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {APP_ROLE}")
+        await conn.execute(f"REVOKE USAGE ON SCHEMA public FROM {APP_ROLE}")
         await conn.execute(f"DROP ROLE IF EXISTS {APP_ROLE}")
     subprocess.run(
         ["uv", "run", "alembic", "downgrade", "base"],
@@ -170,17 +173,15 @@ async def test_rls_insert_wrong_org_blocked(seeded_pool):
             proj_id,
             ORG_A,
         )
-        # Inserting with ORG_B's id while set to ORG_A — RLS blocks visibility.
-        # Policy uses USING only (not WITH CHECK), so the INSERT succeeds
-        # but the row won't be visible to this session.
+        # FORCE ROW LEVEL SECURITY makes the USING clause act as a WITH CHECK
+        # for inserts too, so a mismatched org_id is rejected outright.
         proj_id2 = uuid.uuid4()
-        await conn.execute(
-            "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Sneaky', 'software')",
-            proj_id2,
-            ORG_B,
-        )
-        rows = await conn.fetch("SELECT * FROM projects WHERE id = $1", proj_id2)
-        assert len(rows) == 0
+        with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
+            await conn.execute(
+                "INSERT INTO projects (id, org_id, name, type) VALUES ($1, $2, 'Sneaky', 'software')",
+                proj_id2,
+                ORG_B,
+            )
         await conn.execute("RESET ROLE")
 
 
