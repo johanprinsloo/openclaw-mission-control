@@ -155,10 +155,25 @@ jobs:
     - name: Wait for deployment
       run: |
         echo "Waiting for deployment to complete..."
-        aws lightsail wait container-service-deployment-complete \
-          --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
-          --region ${{ vars.AWS_REGION }}
-        echo "Deployment complete!"
+        for i in $(seq 1 30); do
+          STATE=$(aws lightsail get-container-services \
+            --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
+            --region ${{ vars.AWS_REGION }} \
+            --query 'containerServices[0].state' \
+            --output text)
+          echo "  Attempt $i/30 — state: $STATE"
+          if [ "$STATE" = "RUNNING" ]; then
+            echo "Deployment complete!"
+            exit 0
+          elif [ "$STATE" = "DEPLOYING" ] || [ "$STATE" = "UPDATING" ]; then
+            sleep 20
+          else
+            echo "Unexpected state: $STATE"
+            exit 1
+          fi
+        done
+        echo "Timed out waiting for deployment (10 min)"
+        exit 1
 
     - name: Get deployment URL
       run: |
