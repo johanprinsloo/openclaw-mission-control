@@ -117,40 +117,54 @@ jobs:
         echo "image=$IMAGE_DIGEST" >> $GITHUB_OUTPUT
 
     - name: Deploy to Lightsail
+      env:
+        DEPLOY_IMAGE: ${{ steps.get-image.outputs.image }}
+        MC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        MC_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        MC_CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       run: |
+        CONTAINERS=$(jq -n \
+          --arg image "$DEPLOY_IMAGE" \
+          --arg db_url "$MC_DATABASE_URL" \
+          --arg secret_key "$MC_SECRET_KEY" \
+          --arg cors "$(printf '%s' "$MC_CORS_ORIGINS" | tr -d '\n\r')" \
+          '{
+            app: {
+              image: $image,
+              ports: {"8000": "HTTP"},
+              environment: {
+                MC_DEBUG: "false",
+                MC_DATABASE_URL: $db_url,
+                MC_SECRET_KEY: $secret_key,
+                MC_CORS_ORIGINS: $cors,
+                MC_REDIS_URL: "redis://localhost:6379/0"
+              }
+            },
+            redis: {
+              image: "redis:7-alpine",
+              environment: {
+                REDIS_ARGS: "--maxmemory 128mb --maxmemory-policy allkeys-lru"
+              }
+            }
+          }')
+
+        ENDPOINT=$(jq -n '{
+          containerName: "app",
+          containerPort: 8000,
+          healthCheck: {
+            path: "/health",
+            intervalSeconds: 30,
+            timeoutSeconds: 5,
+            healthyThreshold: 2,
+            unhealthyThreshold: 3
+          }
+        }')
+
         aws lightsail create-container-service-deployment \
           --service-name ${{ vars.LIGHTSAIL_SERVICE_NAME }} \
           --region ${{ vars.AWS_REGION }} \
-          --containers "{
-            \"app\": {
-              \"image\": \"${{ steps.get-image.outputs.image }}\",
-              \"ports\": {\"8000\": \"HTTP\"},
-              \"environment\": {
-                \"MC_DEBUG\": \"false\",
-                \"MC_DATABASE_URL\": \"${{ secrets.DATABASE_URL }}\",
-                \"MC_SECRET_KEY\": \"${{ secrets.SECRET_KEY }}\",
-                \"MC_CORS_ORIGINS\": \"${{ vars.CORS_ORIGINS }}\",
-                \"MC_REDIS_URL\": \"redis://localhost:6379/0\"
-              }
-            },
-            \"redis\": {
-              \"image\": \"redis:7-alpine\",
-              \"environment\": {
-                \"REDIS_ARGS\": \"--maxmemory 128mb --maxmemory-policy allkeys-lru\"
-              }
-            }
-          }" \
-          --public-endpoint "{
-            \"containerName\": \"app\",
-            \"containerPort\": 8000,
-            \"healthCheck\": {
-              \"path\": \"/health\",
-              \"intervalSeconds\": 30,
-              \"timeoutSeconds\": 5,
-              \"healthyThreshold\": 2,
-              \"unhealthyThreshold\": 3
-            }
-          }"
+          --containers "$CONTAINERS" \
+          --public-endpoint "$ENDPOINT"
 
     - name: Wait for deployment
       run: |
