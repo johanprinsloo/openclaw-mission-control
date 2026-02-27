@@ -66,6 +66,35 @@ def create_app() -> FastAPI:
         log.info("Mission Control shutting down")
         await close_redis()
 
+    # Serve frontend SPA
+    import os
+    from fastapi import Request
+    from fastapi.responses import FileResponse
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    frontend_dist = os.path.join(root_dir, "frontend", "dist")
+
+    if os.path.exists(frontend_dist):
+        @app.get("/{catchall:path}", tags=["Frontend"], include_in_schema=False)
+        async def serve_spa(request: Request, catchall: str):
+            # Do not intercept API, auth, or doc routes
+            if catchall.startswith("api/") or catchall.startswith("auth/") or catchall.startswith("docs") or catchall.startswith("openapi.json"):
+                raise StarletteHTTPException(status_code=404, detail="Not Found")
+            
+            # Serve specific files (assets, vite.svg, etc) if they exist
+            if catchall:
+                file_path = os.path.join(frontend_dist, catchall)
+                if os.path.isfile(file_path):
+                    return FileResponse(file_path)
+            
+            # Serve index.html for SPA routes (e.g. /orgs)
+            index_path = os.path.join(frontend_dist, "index.html")
+            if os.path.isfile(index_path):
+                return FileResponse(index_path)
+            
+            raise StarletteHTTPException(status_code=404, detail="Not Found")
+
     return app
 
 
