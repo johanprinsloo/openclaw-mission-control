@@ -258,7 +258,7 @@ class TestAuthEndpoints:
         # Import auth module directly to avoid triggering v1/__init__ which needs shared pkg
         spec = importlib.util.spec_from_file_location(
             "app.api.v1.auth",
-            "app/api/v1/auth.py",
+            "packages/server/app/api/v1/auth.py",
             submodule_search_locations=[],
         )
         # Use already-imported module if available

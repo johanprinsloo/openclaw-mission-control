@@ -25,7 +25,7 @@ SECURITY_HEADERS = {
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://fastapi.tiangolo.com; "
-        "connect-src 'self' wss://*.openclaw.dev; "
+        "connect-src 'self' http://localhost:* ws://localhost:* https://*.halimede-labs.com wss://*.halimede-labs.com https://*.amazonlightsail.com; "
         "frame-ancestors 'none';"
     ),
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
