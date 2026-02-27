@@ -4,9 +4,12 @@ Mission Control API Server
 Entry point for the FastAPI application.
 """
 
+from pathlib import Path
+
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.core.middleware import CSRFMiddleware, SecurityHeadersMiddleware
@@ -65,6 +68,30 @@ def create_app() -> FastAPI:
     async def on_shutdown():
         log.info("Mission Control shutting down")
         await close_redis()
+
+    frontend_dist = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+    index_file = frontend_dist / "index.html"
+    if index_file.exists():
+        @app.get("/", include_in_schema=False)
+        async def frontend_root():
+            return FileResponse(index_file)
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def frontend_spa_fallback(full_path: str):
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(status_code=404)
+            if full_path == "auth" or full_path.startswith("auth/"):
+                raise HTTPException(status_code=404)
+
+            try:
+                candidate = (frontend_dist / full_path).resolve()
+            except (OSError, RuntimeError):
+                return FileResponse(index_file)
+
+            if not candidate.is_relative_to(frontend_dist) or not candidate.is_file():
+                return FileResponse(index_file)
+
+            return FileResponse(candidate)
 
     return app
 
