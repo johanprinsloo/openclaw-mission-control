@@ -58,8 +58,8 @@ const handleLogin = async () => {
   loading.value = true
   error.value = ''
   try {
-    // Note: In development, our API is at http://localhost:8000
-    await axios.post('http://localhost:8000/auth/login', {
+    // Use the Vite proxy in development, and relative path in production
+    await axios.post('/auth/login', {
       email: email.value,
       password: password.value
     }, { withCredentials: true })
