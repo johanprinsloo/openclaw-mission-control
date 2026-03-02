@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -37,7 +37,7 @@ from app.core.auth import (
 from app.core.chat import manager
 from app.core.database import get_session
 from app.core.events import broadcast_event
-from app.models.assignments import ProjectUserAssignment
+from app.models.assignments import ProjectUserAssignment, TaskProjectAssignment
 from app.models.channel import Channel
 from app.models.message import Message
 from app.models.user import User
@@ -88,8 +88,22 @@ async def _verify_channel_access(
     session: AsyncSession,
     channel: Channel,
     user_id: UUID,
+    auth: Optional[AuthenticatedUser] = None
 ) -> bool:
     """Verify the user has access to a channel. Returns True if allowed."""
+    # Sub-agent scope: restricted to project channels for its assigned task
+    if auth and auth.is_sub_agent:
+        if channel.type != "project" or not channel.project_id:
+            return False
+        
+        # Check if the channel's project is assigned to the sub-agent's task
+        stmt = select(TaskProjectAssignment).where(
+            TaskProjectAssignment.task_id == auth.task_id,
+            TaskProjectAssignment.project_id == channel.project_id
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     if channel.type == "org_wide":
         return True
 
@@ -224,38 +238,57 @@ async def list_channels(
     session: AsyncSession = Depends(get_session),
 ):
     """List all channels the user has access to."""
-    # Get org-wide channels
-    org_wide_stmt = (
-        select(Channel)
-        .where(
-            Channel.org_id == auth.org_id,
-            Channel.type == "org_wide",
+    if auth.is_sub_agent:
+        # Sub-agents only see project channels for their assigned task
+        project_stmt = (
+            select(Channel)
+            .join(
+                TaskProjectAssignment,
+                and_(
+                    TaskProjectAssignment.project_id == Channel.project_id,
+                    TaskProjectAssignment.task_id == auth.task_id,
+                ),
+            )
+            .where(
+                Channel.org_id == auth.org_id,
+                Channel.type == "project",
+            )
+            .order_by(Channel.name)
         )
-        .order_by(Channel.name)
-    )
-    result = await session.execute(org_wide_stmt)
-    org_wide_channels = result.scalars().all()
+        result = await session.execute(project_stmt)
+        all_channels = result.scalars().all()
+    else:
+        # Get org-wide channels
+        org_wide_stmt = (
+            select(Channel)
+            .where(
+                Channel.org_id == auth.org_id,
+                Channel.type == "org_wide",
+            )
+            .order_by(Channel.name)
+        )
+        result = await session.execute(org_wide_stmt)
+        org_wide_channels = result.scalars().all()
 
-    # Get project channels the user is assigned to
-    project_stmt = (
-        select(Channel)
-        .join(
-            ProjectUserAssignment,
-            and_(
-                ProjectUserAssignment.project_id == Channel.project_id,
-                ProjectUserAssignment.user_id == auth.user_id,
-            ),
+        # Get project channels the user is assigned to
+        project_stmt = (
+            select(Channel)
+            .join(
+                ProjectUserAssignment,
+                and_(
+                    ProjectUserAssignment.project_id == Channel.project_id,
+                    ProjectUserAssignment.user_id == auth.user_id,
+                ),
+            )
+            .where(
+                Channel.org_id == auth.org_id,
+                Channel.type == "project",
+            )
+            .order_by(Channel.name)
         )
-        .where(
-            Channel.org_id == auth.org_id,
-            Channel.type == "project",
-        )
-        .order_by(Channel.name)
-    )
-    result = await session.execute(project_stmt)
-    project_channels = result.scalars().all()
-
-    all_channels = list(org_wide_channels) + list(project_channels)
+        result = await session.execute(project_stmt)
+        project_channels = result.scalars().all()
+        all_channels = list(org_wide_channels) + list(project_channels)
 
     # Get member counts
     channel_data = []
@@ -301,7 +334,7 @@ async def get_channel_details(
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
 
-    if not await _verify_channel_access(session, channel, auth.user_id):
+    if not await _verify_channel_access(session, channel, auth.user_id, auth=auth):
         raise HTTPException(status_code=404, detail="Channel not found")
 
     # Member count
@@ -357,7 +390,7 @@ async def websocket_endpoint(
         websocket, auth.org_id, auth.user_id, jti=getattr(auth, "_jti", None)
     )
     if conn_info is None:
-        await websocket.close(code=4029, reason="connection_limit_exceeded")
+        await websocket.close(code=4229, reason="connection_limit_exceeded")
         return
 
     try:
@@ -390,7 +423,7 @@ async def websocket_endpoint(
                 for cid in channel_ids:
                     try:
                         channel = await _get_channel(session, UUID(cid), auth.org_id)
-                        if channel and await _verify_channel_access(session, channel, auth.user_id):
+                        if channel and await _verify_channel_access(session, channel, auth.user_id, auth=auth):
                             conn_info.subscribed_channels.add(cid)
                     except (ValueError, Exception):
                         pass
@@ -449,13 +482,13 @@ async def websocket_endpoint(
                     )
                     continue
 
-                if not await _verify_channel_access(session, channel, auth.user_id):
+                if not await _verify_channel_access(session, channel, auth.user_id, auth=auth):
                     await websocket.send_text(
                         json.dumps(
                             {
                                 "type": "error",
                                 "code": "ACCESS_DENIED",
-                                "message": "You are not a member of this project channel.",
+                                "message": "Access denied to this channel.",
                             }
                         )
                     )
@@ -555,7 +588,7 @@ async def get_messages(
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
 
-    if not await _verify_channel_access(session, channel, auth.user_id):
+    if not await _verify_channel_access(session, channel, auth.user_id, auth=auth):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Build query
@@ -632,7 +665,7 @@ async def post_message(
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
 
-    if not await _verify_channel_access(session, channel, auth.user_id):
+    if not await _verify_channel_access(session, channel, auth.user_id, auth=auth):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Parse mentions from content and merge with explicit mentions

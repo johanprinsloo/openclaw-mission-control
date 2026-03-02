@@ -1,6 +1,6 @@
 """Sub-agent model (RLS-scoped)."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -20,7 +20,7 @@ class SubAgent(SQLModel, table=True):
     created_by: uuid.UUID = Field(foreign_key="users.id", nullable=False)
     api_key_hash: Optional[str] = None
     created_at: datetime = Field(
-        default_factory=lambda: datetime.utcnow(),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
         sa_column_kwargs={"server_default": "now()"},
         sa_type=sa.DateTime(timezone=True),

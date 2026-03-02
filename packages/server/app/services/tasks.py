@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from datetime import datetime
-from typing import Sequence
+from datetime import datetime, timezone
+from typing import Sequence, Optional, TYPE_CHECKING
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,13 +32,26 @@ from openclaw_mc_shared.schemas.tasks import (
     TaskUpdate,
 )
 
+if TYPE_CHECKING:
+    from app.core.auth import AuthenticatedUser
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-async def get_task_or_404(session: AsyncSession, task_id: uuid.UUID, org_id: uuid.UUID) -> Task:
+async def get_task_or_404(
+    session: AsyncSession, 
+    task_id: uuid.UUID, 
+    org_id: uuid.UUID,
+    auth: Optional[AuthenticatedUser] = None
+) -> Task:
+    """Get a task by ID. Enforces sub-agent task scope if auth is provided."""
+    # Sub-agent scope: can only access assigned task
+    if auth and auth.sub_agent_id and auth.task_id and auth.task_id != task_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     task = await session.get(Task, task_id)
     if not task or task.org_id != org_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -271,7 +284,7 @@ async def transition_task(
     old_status = task.status
     task.status = to_status.value
     if to_status == TaskStatus.COMPLETE:
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
     elif old_status == TaskStatus.COMPLETE.value:
         task.completed_at = None  # reopen
 

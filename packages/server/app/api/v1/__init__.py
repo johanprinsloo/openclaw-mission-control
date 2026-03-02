@@ -5,7 +5,7 @@ All org-scoped endpoints are prefixed with /orgs/{orgSlug}.
 """
 
 from fastapi import APIRouter
-from . import projects, tasks, events, channels, users
+from . import projects, tasks, events, channels, users, sub_agents
 from .organizations import router_global as orgs_global_router
 from .organizations import router_scoped as orgs_scoped_router
 
@@ -24,6 +24,7 @@ router.include_router(tasks.router, prefix="/orgs/{orgSlug}/tasks", tags=["Tasks
 router.include_router(events.router, prefix="/orgs/{orgSlug}/events", tags=["Events"])
 router.include_router(channels.router, prefix="/orgs/{orgSlug}/channels", tags=["Channels"])
 router.include_router(users.router, prefix="/orgs/{orgSlug}/users", tags=["Users"])
+router.include_router(sub_agents.router, prefix="/orgs/{orgSlug}/sub-agents", tags=["Sub-Agents"])
 
 
 @router.get("/", tags=["API"])
@@ -39,5 +40,6 @@ async def api_root():
             "/orgs/{orgSlug}/channels",
             "/orgs/{orgSlug}/events",
             "/orgs/{orgSlug}/search",
+            "/orgs/{orgSlug}/sub-agents",
         ],
     }

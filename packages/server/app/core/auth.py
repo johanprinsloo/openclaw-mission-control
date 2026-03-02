@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import bcrypt
@@ -111,7 +111,7 @@ def create_jwt(
 ) -> tuple[str, str]:
     """Create a signed JWT. Returns (token, jti)."""
     jti = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     exp = now + (expires_delta or timedelta(minutes=settings.jwt_expire_minutes))
     payload = {
         "sub": str(user_id),
@@ -166,13 +166,26 @@ def generate_csrf_token() -> str:
 class AuthenticatedUser:
     """Container for an authenticated user + their org context."""
 
-    def __init__(self, user: User, org: Organization, user_org: UserOrg):
+    def __init__(
+        self, 
+        user: User, 
+        org: Organization, 
+        user_org: UserOrg,
+        sub_agent_id: Optional[uuid.UUID] = None,
+        task_id: Optional[uuid.UUID] = None
+    ):
         self.user = user
         self.org = org
         self.user_org = user_org
         self.user_id = user.id
         self.org_id = org.id
         self.role = user_org.role
+        self.sub_agent_id = sub_agent_id
+        self.task_id = task_id
+
+    @property
+    def is_sub_agent(self) -> bool:
+        return self.sub_agent_id is not None
 
 
 async def _resolve_org(org_slug: str, session: AsyncSession) -> Organization:
@@ -229,6 +242,7 @@ async def _authenticate_api_key(
 
     if is_tmp:
         # Sub-agent ephemeral key — look up in sub_agents table
+        # Note: Sub-agents IDs serve as the short_id hint for tmp keys
         result = await session.execute(
             select(SubAgent).where(
                 SubAgent.org_id == org.id,
@@ -237,25 +251,35 @@ async def _authenticate_api_key(
         )
         sub_agents = result.scalars().all()
         for sa in sub_agents:
-            if sa.api_key_hash and verify_api_key(key, sa.api_key_hash):
-                # Check expiry
-                if sa.expires_at < datetime.utcnow():
-                    raise HTTPException(status_code=401, detail="Ephemeral key expired")
-                # Get the creating user's org membership for role
-                result = await session.execute(
-                    select(UserOrg).where(
-                        UserOrg.user_id == sa.created_by,
-                        UserOrg.org_id == org.id,
+            # Match short_id hint first
+            sa_short = str(sa.id).replace("-", "")[:12]
+            if sa_short == short_id:
+                if sa.api_key_hash and verify_api_key(key, sa.api_key_hash):
+                    # Check expiry
+                    if sa.expires_at < datetime.now(timezone.utc):
+                        raise HTTPException(status_code=401, detail="Ephemeral key expired")
+                    
+                    # Get the creating user's org membership for role
+                    result = await session.execute(
+                        select(UserOrg).where(
+                            UserOrg.user_id == sa.created_by,
+                            UserOrg.org_id == org.id,
+                        )
                     )
-                )
-                user_org = result.scalar_one_or_none()
-                if not user_org:
-                    raise HTTPException(status_code=401, detail="Sub-agent creator not in org")
-                result = await session.execute(select(User).where(User.id == sa.created_by))
-                user = result.scalar_one_or_none()
-                if not user:
-                    raise HTTPException(status_code=401, detail="User not found")
-                return AuthenticatedUser(user=user, org=org, user_org=user_org)
+                    user_org = result.scalar_one_or_none()
+                    if not user_org:
+                        raise HTTPException(status_code=401, detail="Sub-agent creator not in org")
+                    result = await session.execute(select(User).where(User.id == sa.created_by))
+                    user = result.scalar_one_or_none()
+                    if not user:
+                        raise HTTPException(status_code=401, detail="User not found")
+                    return AuthenticatedUser(
+                        user=user, 
+                        org=org, 
+                        user_org=user_org,
+                        sub_agent_id=sa.id,
+                        task_id=sa.task_id
+                    )
         raise HTTPException(status_code=401, detail="Invalid API key")
     else:
         # Persistent agent key — O(1) lookup via short_id hint
@@ -278,7 +302,7 @@ async def _authenticate_api_key(
                         expires = datetime.fromisoformat(uo.api_key_previous_expires_at)
                     except (ValueError, TypeError):
                         expires = datetime.min
-                    if expires > datetime.utcnow() and verify_api_key(
+                    if expires > datetime.now(timezone.utc) and verify_api_key(
                         key, uo.api_key_previous_hash
                     ):
                         result = await session.execute(select(User).where(User.id == uo.user_id))

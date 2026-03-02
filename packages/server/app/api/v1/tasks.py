@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -63,6 +63,10 @@ async def list_tasks_endpoint(
 ):
     """List tasks with optional filters by project, status, assignee, priority."""
     stmt = select(Task).where(Task.org_id == auth.org_id)
+    
+    # Sub-agent scope: can only see their assigned task
+    if auth.is_sub_agent:
+        stmt = stmt.where(Task.id == auth.task_id)
 
     if status:
         stmt = stmt.where(Task.status == status.value)
@@ -97,6 +101,10 @@ async def create_task_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new task."""
+    # Sub-agents cannot create tasks
+    if auth.is_sub_agent:
+        raise HTTPException(status_code=403, detail="Sub-agents cannot create tasks")
+
     task = await create_task(session, task_in, auth.org_id)
     await session.commit()
     await session.refresh(task)
@@ -130,7 +138,7 @@ async def get_task_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Get a single task with full details."""
-    task = await get_task_or_404(session, task_id, auth.org_id)
+    task = await get_task_or_404(session, task_id, auth.org_id, auth=auth)
     return await enrich_task(session, task)
 
 
@@ -143,7 +151,7 @@ async def update_task_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Update task metadata."""
-    task = await get_task_or_404(session, task_id, auth.org_id)
+    task = await get_task_or_404(session, task_id, auth.org_id, auth=auth)
     task = await update_task(session, task, task_in, auth.org_id)
     await session.commit()
     await session.refresh(task)
@@ -179,7 +187,7 @@ async def transition_task_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Transition a task to a new status. Evidence gate enforced for completion."""
-    task = await get_task_or_404(session, task_id, auth.org_id)
+    task = await get_task_or_404(session, task_id, auth.org_id, auth=auth)
     old_status = task.status
 
     task = await transition_task(
@@ -221,6 +229,10 @@ async def add_dependency_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Add a dependency (task is blocked by blocked_by_id). Detects circular deps."""
+    # Sub-agents cannot manage dependencies
+    if auth.is_sub_agent:
+        raise HTTPException(status_code=403, detail="Sub-agents cannot manage dependencies")
+
     await add_dependency(session, task_id, body.blocked_by_id, auth.org_id)
     await session.commit()
 
@@ -248,6 +260,10 @@ async def remove_dependency_endpoint(
     session: AsyncSession = Depends(get_session),
 ):
     """Remove a dependency."""
+    # Sub-agents cannot manage dependencies
+    if auth.is_sub_agent:
+        raise HTTPException(status_code=403, detail="Sub-agents cannot manage dependencies")
+
     await remove_dependency(session, task_id, blocked_by_id, auth.org_id)
     await session.commit()
 
